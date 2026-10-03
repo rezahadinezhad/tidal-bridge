@@ -60,3 +60,14 @@ func TestNodeEntryAndOriginalResolution(t *testing.T) {
 		t.Fatal("missing original should fail")
 	}
 }
+
+func TestTaskFileNodeToolsRunNatively(t *testing.T) {
+	root := t.TempDir()
+	p := Project{Version: 1, Enabled: true, Runtime: "debian", Tasks: []Task{{Name: "vitest", Command: []string{"vitest", "run"}}, {Name: "lint", Command: []string{"eslint"}, Engine: "proot"}}}
+	if spec, ok := Spec(p, root, root, []string{"vitest", "run", "src/a.test.ts"}); !ok || spec.Engine != "native" {
+		t.Fatal("a task-file Node tool runs natively like a detected one", spec.Engine, ok)
+	}
+	if spec, ok := Spec(p, root, root, []string{"eslint", "src"}); !ok || spec.Engine != "" {
+		t.Fatal(`"engine": "proot" keeps a task on proot`, spec.Engine, ok)
+	}
+}

@@ -95,6 +95,7 @@ func run(ctx context.Context) (int, error) {
 		if forceRemote {
 			return 1, fmt.Errorf("required remote route unavailable: %w", clientErr)
 		}
+		fmt.Fprintln(os.Stderr, "[Tidal Bridge] The service did not answer; running this on the laptop.")
 		return passthrough(ctx, local, nil)
 	}
 	client.Quiet = true
@@ -180,6 +181,8 @@ func run(ctx context.Context) (int, error) {
 	var previewDecision *protocol.Decision
 	if err == nil {
 		previewDecision = &decision
+	} else {
+		fmt.Fprintln(os.Stderr, "[Tidal Bridge] The service did not decide in time; running this on the laptop.")
 	}
 	return localSuite(ctx, client, spec, local, &observed{client: client, spec: spec, decision: previewDecision})
 }

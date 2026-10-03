@@ -55,7 +55,10 @@ func xmlEscape(s string) string {
 }
 
 // TaskXML is the task definition: start at this user's logon, restart after
-// failures, no run-time limit, keep running on battery, below-normal priority.
+// failures, no run-time limit, keep running on battery, normal priority. The
+// service itself is light, but adapters wait only seconds for its routing
+// answer: at below-normal priority a saturated laptop starved it, and work
+// stayed on the laptop exactly when offloading mattered most.
 func TaskXML(account, executable, dataDir string) string {
 	return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -76,7 +79,7 @@ func TaskXML(account, executable, dataDir string) string {
     <RunOnlyIfIdle>false</RunOnlyIfIdle>
     <WakeToRun>false</WakeToRun>
     <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Priority>7</Priority>
+    <Priority>5</Priority>
     <RestartOnFailure><Interval>PT1M</Interval><Count>999</Count></RestartOnFailure>
   </Settings>
   <Actions Context="Author"><Exec><Command>` + xmlEscape(executable) + `</Command><Arguments>--data-dir "` + xmlEscape(dataDir) + `"</Arguments><WorkingDirectory>` + xmlEscape(filepath.Dir(executable)) + `</WorkingDirectory></Exec></Actions>
