@@ -3,9 +3,10 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $goPath = Join-Path $projectRoot '.tools\go\bin\go.exe'
 # A release ships its programs ready-built in prebuilt\; a source checkout
-# compiles them.
+# (it has .git) always compiles them, so a leftover prebuilt\ never installs
+# programs older than the code.
 $prebuilt = Join-Path $projectRoot 'prebuilt'
-$usePrebuilt = Test-Path -LiteralPath (Join-Path $prebuilt 'tidalbridge-task.exe')
+$usePrebuilt = (Test-Path -LiteralPath (Join-Path $prebuilt 'tidalbridge-task.exe')) -and -not (Test-Path -LiteralPath (Join-Path $projectRoot '.git'))
 if (-not $usePrebuilt -and -not (Test-Path -LiteralPath $goPath)) { python (Join-Path $PSScriptRoot 'bootstrap-go.py'); if ($LASTEXITCODE -ne 0) { throw 'Go bootstrap failed' } }
 
 # Replace an executable that may be running: Windows allows renaming a running

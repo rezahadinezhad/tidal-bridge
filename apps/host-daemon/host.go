@@ -789,7 +789,9 @@ func (h *Host) dispatch(ctx context.Context) {
 				}
 			}
 			j.Attempts = append(j.Attempts, attempt)
-			jobCtx, cancel := context.WithTimeout(ctx, time.Duration(spec.TimeoutSeconds)*time.Second)
+			// The worker lets a run that is still printing go past its limit,
+			// up to three times it (SILENT_LIMIT and OVERTIME in worker.py).
+			jobCtx, cancel := context.WithTimeout(ctx, time.Duration(spec.TimeoutSeconds)*time.Second*overtime+time.Minute)
 			h.cancel[id] = cancel
 			h.save(j)
 			h.mu.Unlock()
@@ -799,6 +801,11 @@ func (h *Host) dispatch(ctx context.Context) {
 		}
 	}
 }
+
+// overtime: how far past its limit a worker lets a run that is still printing
+// go (OVERTIME in worker.py).
+const overtime = 3
+
 func (h *Host) removePending(id string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
