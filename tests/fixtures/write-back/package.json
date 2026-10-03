@@ -1,0 +1,10 @@
+{
+  "name": "tidalbridge-write-back-fixture",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write src"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

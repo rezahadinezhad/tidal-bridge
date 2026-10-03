@@ -1,0 +1,45 @@
+{
+  "version": "0.1.3",
+  "window_seconds": 30,
+  "scope": "Daemon only, one phone connected and dashboard open; ADB/browser/command clients excluded; telemetry updates every 10s.",
+  "samples": [
+    {
+      "daemon_rss_mb": 21.40625,
+      "daemon_cpu_percent": 0,
+      "sampled": "2026-10-01T20:38:31.0477487+03:30"
+    },
+    {
+      "daemon_rss_mb": 21.40625,
+      "daemon_cpu_percent": 0,
+      "sampled": "2026-10-01T20:38:31.0477487+03:30"
+    },
+    {
+      "daemon_rss_mb": 20.765625,
+      "daemon_cpu_percent": 1.0950029461711268,
+      "sampled": "2026-10-01T20:38:41.0553814+03:30"
+    },
+    {
+      "daemon_rss_mb": 20.765625,
+      "daemon_cpu_percent": 1.0950029461711268,
+      "sampled": "2026-10-01T20:38:41.0553814+03:30"
+    },
+    {
+      "daemon_rss_mb": 20.90625,
+      "daemon_cpu_percent": 0,
+      "sampled": "2026-10-01T20:38:51.0475001+03:30"
+    },
+    {
+      "daemon_rss_mb": 20.90625,
+      "daemon_cpu_percent": 0,
+      "sampled": "2026-10-01T20:38:51.0475001+03:30"
+    },
+    {
+      "daemon_rss_mb": 21.25,
+      "daemon_cpu_percent": 0,
+      "sampled": "2026-10-01T20:39:01.0476036+03:30"
+    }
+  ],
+  "average_rss_mb": 21.058035714285715,
+  "peak_rss_mb": 21.40625,
+  "average_cpu_percent_of_one_core": 0.31285798462032194
+}

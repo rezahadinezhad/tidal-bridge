@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Tidal Bridge</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="#top" aria-label="Tidal Bridge">
+    <svg viewBox="0 0 48 32" aria-hidden="true"><defs><linearGradient id="brand-wave"><stop stop-color="#42d3ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><circle cx="9" cy="16" r="5" fill="#42d3ff"/><path d="M15 16C22 4 27 28 34 16" fill="none" stroke="url(#brand-wave)" stroke-width="3" stroke-linecap="round"/><circle cx="39" cy="16" r="5" fill="#8b5cf6"/></svg>
+    <span>Tidal Bridge</span>
+  </a>
+  <div class="live" id="live"><i></i><span id="live-text">Connecting</span></div>
+  <div class="top-actions">
+    <div class="segmented" id="mode" role="radiogroup" aria-label="How eagerly work moves to the phone">
+      <button type="button" role="radio" data-mode="AUTO" data-tip="Moves work when it relieves this laptop. The busier the laptop, the slower a phone it accepts.">Auto</button>
+      <button type="button" role="radio" data-mode="CONSERVATIVE" data-tip="Moves work only when the phone is clearly faster.">Careful</button>
+      <button type="button" role="radio" data-mode="PERFORMANCE" data-tip="Moves as much as it can, even when the phone is slower.">Max</button>
+      <button type="button" role="radio" data-mode="BATTERY_SAVER" data-tip="Uses the phone only while it is charging.">On charge</button>
+    </div>
+    <button type="button" class="button" id="pause" data-tip="Keep everything on this laptop for now. Running jobs finish.">Pause</button>
+    <button type="button" class="icon-button" id="theme" aria-label="Switch between dark and light">◐</button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="banner" id="error" role="alert" hidden></div>
+
+  <section class="hero glass" id="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Where your work runs</p>
+      <h1 id="headline">Connecting…</h1>
+      <p class="muted" id="subline">Tidal Bridge decides for every command whether this laptop or your phone runs it.</p>
+    </div>
+    <div class="bridge" id="bridge">
+      <div class="end">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="14" width="44" height="29" rx="4" class="device-body"/><rect x="14" y="18" width="36" height="21" rx="2" class="device-screen"/><path d="M5 47h54l-4 5H9z" class="device-body"/></svg>
+        <strong>This laptop</strong>
+        <span id="laptop-line">—</span>
+      </div>
+      <div class="link" aria-hidden="true">
+        <svg viewBox="0 0 400 40" preserveAspectRatio="none"><defs><linearGradient id="link-wave" x2="1"><stop stop-color="#42d3ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path d="M0 20C70 4 130 36 200 20S330 4 400 20" class="wave"/></svg>
+        <i class="runner"></i><i class="runner late"></i>
+        <span id="link-line">USB cable</span>
+      </div>
+      <div class="end">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="19" y="6" width="26" height="52" rx="6" class="device-body"/><rect x="22" y="12" width="20" height="40" rx="2" class="device-screen"/></svg>
+        <strong id="phone-name">Phone</strong>
+        <span id="phone-line">—</span>
+      </div>
+    </div>
+    <div class="hero-stats" id="hero-stats"></div>
+  </section>
+
+  <section class="cards" aria-label="Live load">
+    <article class="card glass">
+      <header><span>Laptop CPU</span><b class="tag" data-tip="Updated every second while this page is open. Dashed: about where this laptop would be if it also ran the phone's work.">LIVE</b></header>
+      <strong id="cpu">—</strong>
+      <svg class="spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true"><path id="cpu-ghost" class="ghost"/><path id="cpu-spark"/></svg>
+      <small class="muted" id="cpu-note">last minute</small>
+    </article>
+    <article class="card glass">
+      <header><span>Laptop memory</span><b class="tag" data-tip="Dashed: about where this laptop would be if it also held what the phone holds for it.">LIVE</b></header>
+      <strong id="ram">—</strong>
+      <svg class="spark violet" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true"><path id="ram-ghost" class="ghost"/><path id="ram-spark"/></svg>
+      <small class="muted" id="ram-note">—</small>
+    </article>
+    <article class="card glass">
+      <header><span>Phone</span><b class="tag soft" id="phone-tag">—</b></header>
+      <strong id="phone-heat">—</strong>
+      <div class="meter"><i id="battery-bar"></i></div>
+      <small class="muted" id="phone-note">—</small>
+    </article>
+    <article class="card glass">
+      <header><span>Spared your laptop today</span><i class="info" tabindex="0" data-tip="CPU time this laptop did not have to spend. For commands that also ran here, their measured cost here; for the rest, the phone's own measurement. Memory: the most the phone held for you at once. Phone setup and commands the laptop re-ran do not count. Forced onto the laptop: commands an agent or you required here (TIDALBRIDGE_FORCE_LOCAL) although the phone could have taken them.">?</i></header>
+      <strong id="relief">—</strong>
+      <div class="meter" data-tip="Share of today's commands the phone ran."><i id="relief-bar" class="violet"></i></div>
+      <small class="muted" id="relief-note">—</small>
+      <small class="muted" id="overhead" data-tip="Tidal Bridge's own background service on this laptop.">—</small>
+    </article>
+  </section>
+
+  <section class="glass panel" id="phones">
+    <div class="panel-head">
+      <div><h2>Phones</h2><p class="muted">What each connected phone can take right now.</p></div>
+      <div class="phone-settings">
+        <span class="muted">Jobs at once</span>
+        <div class="segmented small" id="capacity" role="radiogroup" aria-label="Most jobs a phone runs at once">
+          <button type="button" role="radio" data-capacity="1">1</button><button type="button" role="radio" data-capacity="2">2</button><button type="button" role="radio" data-capacity="3">3</button><button type="button" role="radio" data-capacity="4">4</button>
+        </div>
+        <label class="adapt" data-tip="Fewer jobs while you use the phone, while it is warm or on battery, and when it is short of memory. Off: always the number chosen (heat safety still applies).">Adapt<span class="switch small"><input type="checkbox" id="adaptive"><span></span></span></label>
+        <button type="button" class="button" id="refresh" data-tip="Ask the phone for fresh battery, heat and memory readings.">Refresh</button>
+      </div>
+    </div>
+    <div class="devices" id="devices"></div>
+  </section>
+
+  <section class="glass panel" id="activity">
+    <div class="panel-head">
+      <div><h2>Activity</h2><p class="muted">Every command Tidal Bridge handled, where it ran and why. Select one for details.</p></div>
+      <div class="segmented small" id="filters" role="radiogroup" aria-label="Filter">
+        <button type="button" role="radio" data-filter="all" aria-checked="true">All</button>
+        <button type="button" role="radio" data-filter="running">Running</button>
+        <button type="button" role="radio" data-filter="phone">Phone</button>
+        <button type="button" role="radio" data-filter="laptop">Laptop</button>
+        <button type="button" role="radio" data-filter="problems">Problems</button>
+      </div>
+    </div>
+    <ol class="jobs" id="jobs"></ol>
+  </section>
+
+
+  <section class="glass panel" id="automation">
+    <div class="panel-head">
+      <div><h2>Automatic offloading</h2><p class="muted">Safe commands (checks, tests, formatters, dev servers) move on their own in every project. Nothing is written into your projects.</p></div>
+      <label class="switch" data-tip="Off: only projects with their own task file use the phone."><input type="checkbox" id="universal"><span></span></label>
+    </div>
+    <div class="lists">
+      <div class="list-box">
+        <h3>Sharing <code>.env</code> files with the phone</h3>
+        <p class="muted">Lets dev servers and Python tests move. These files may hold secrets; they stay on the phone in Tidal Bridge's private folder.</p>
+        <div class="chips" id="share-list"></div>
+        <form class="add" data-list="share_env"><input placeholder="R:\project" aria-label="Project folder to share .env files from" required><button class="button">Add</button></form>
+      </div>
+      <div class="list-box">
+        <h3>Never offloaded</h3>
+        <p class="muted">Everything in these folders always runs on this laptop.</p>
+        <div class="chips" id="excluded-list"></div>
+        <form class="add" data-list="excluded"><input placeholder="R:\project" aria-label="Project folder to keep on this laptop" required><button class="button">Add</button></form>
+      </div>
+      <div class="list-box">
+        <h3>Projects with their own task file</h3>
+        <p class="muted">Their <code>.tidalbridge/tasks.json</code> decides instead of automatic detection.</p>
+        <div id="task-projects"></div>
+      </div>
+    </div>
+  </section>
+
+  <details class="glass panel" id="inspector">
+    <summary><span><h2>Route inspector</h2><p class="muted">Ask where a command would run, and why.</p></span><b class="chevron">›</b></summary>
+    <form id="route-form">
+      <label>Command<input id="route-command" value="npm run typecheck" required></label>
+      <label>Project folder<input id="route-workspace" placeholder="R:\project"></label>
+      <label>Expected time (s)<input id="route-estimate" type="number" value="20" min="1"></label>
+      <button class="button primary">Check</button>
+    </form>
+    <div id="route-result"></div>
+  </details>
+
+  <footer class="muted"><span>Whole commands move; the phone's memory stays separate from this laptop's.</span><span id="updated"></span></footer>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <button type="button" class="icon-button close" id="modal-close" aria-label="Close">✕</button>
+    <div id="sheet"></div>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+</body>
+</html>

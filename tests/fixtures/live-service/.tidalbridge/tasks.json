@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "enabled": true,
+  "runtime": "debian",
+  "tasks": [
+    { "name": "serve", "command": ["node", "server.js"], "service": true, "ports": [47900] }
+  ]
+}

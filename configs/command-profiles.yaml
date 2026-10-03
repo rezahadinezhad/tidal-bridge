@@ -1,0 +1,14 @@
+# Guidance for callers. Compatibility is still verified by the scheduler.
+python:
+  runtime: { python: ">=3.9" }
+  examples: ["python -m unittest discover", "python -m pytest -q", "ruff check ."]
+node:
+  runtime: { node: ">=18" }
+  examples: ["node script.js", "npm test", "npx tsc --noEmit"]
+git:
+  runtime: { git: ">=2" }
+  examples: ["git --version", "git diff"]
+  note: "The .git database is excluded by default. Git repository operations require a separate explicitly prepared worker repository."
+browser:
+  tier: "A: Android Chrome rendering with viewport emulation"
+  desktop_fidelity: false

@@ -1,0 +1,612 @@
+{
+  "measured_at": "2026-10-01",
+  "physical_worker": "worker-38f56351d6f51c4df17cff10",
+  "local_scope": "Root process CPU and working set; descendants excluded.",
+  "remote_adapter_scope": "Command adapter only; daemon, ADB and UI excluded.",
+  "jobs": [
+    {
+      "id": "d68154ac9fb2d8abdff6205764c72bedf7a207d1146546a5",
+      "state": "COMPLETED",
+      "created": "2026-10-01T21:10:21.4305124+03:30",
+      "finished": "2026-10-01T21:10:26.6354348+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.5877069086845749,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "python 3.13.13 is compatible.",
+              "Host pressure 88%; transfer 0 bytes; expected total 7472 ms."
+            ],
+            "sync_bytes": 0,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 7471.651437500001
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 59%, including transfer/setup and host pressure.",
+        "local_cost_ms": 18122.184423856397,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 4794.24,
+          "environment_warm": false,
+          "id": "b240680a647420df79bb534ef690e6d38a312293f0dc6258",
+          "started": "2026-10-01T21:10:21.841194+03:30",
+          "sync_ms": 104.602,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 25.2109375
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.015625,
+        "peak_ram_mb": 11.9375,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/worker",
+        "-v"
+      ],
+      "profile": "automatic:unittest",
+      "force_remote": false
+    },
+    {
+      "id": "40bede0cbdb6c4d2b815fba229b4a89ece6cc71d3c9f80ad",
+      "state": "COMPLETED",
+      "created": "2026-10-01T21:10:15.9161751+03:30",
+      "finished": "2026-10-01T21:10:20.6558702+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.03998237233256131,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "python 3.13.13 is compatible.",
+              "Host pressure 86%; transfer 0 bytes; expected total 16796 ms."
+            ],
+            "sync_bytes": 0,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 16795.660999999996
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 4%, including transfer/setup and host pressure.",
+        "local_cost_ms": 17495.158959537574,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 4600.278,
+          "environment_warm": false,
+          "id": "1731806831b6e68df2394b6b365dfdfd0bc316eb1fdd822e",
+          "started": "2026-10-01T21:10:16.0555917+03:30",
+          "sync_ms": 47.931,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 25.25
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.015625,
+        "peak_ram_mb": 11.65625,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/worker",
+        "-v"
+      ],
+      "profile": "automatic:unittest",
+      "force_remote": true,
+      "validation_role": "Explicit qualification after timing-model revision"
+    },
+    {
+      "id": "57b9206bdb3b90194dea61cb6060559ad404a299737679eb",
+      "state": "COMPLETED",
+      "created": "2026-10-01T21:10:09.2855861+03:30",
+      "finished": "2026-10-01T21:10:15.3760301+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.03954990405958356,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "python 3.13.13 is compatible.",
+              "Host pressure 86%; transfer 103711 bytes; expected total 16803 ms."
+            ],
+            "sync_bytes": 103711,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 16803.2271011807
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 4%, including transfer/setup and host pressure.",
+        "local_cost_ms": 17495.158959537574,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 103711,
+          "cache_warm": false,
+          "duration_ms": 5866.147,
+          "environment_warm": false,
+          "id": "6330a1cd272edfae1ec2d1e1b845022107dfe3bf7dbcd1e8",
+          "started": "2026-10-01T21:10:09.5098831+03:30",
+          "sync_ms": 109.161,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 25.19140625
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.046875,
+        "peak_ram_mb": 11.92578125,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/worker",
+        "-v"
+      ],
+      "profile": "automatic:unittest",
+      "force_remote": true,
+      "validation_role": "Explicit qualification after timing-model revision"
+    },
+    {
+      "id": "af594175f708100821040a3cd84569626e769491d970f05d",
+      "state": "COMPLETED",
+      "created": "2026-10-01T21:03:31.2833547+03:30",
+      "finished": "2026-10-01T21:03:49.4453919+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.12458854777679515,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "python 3.13.13 is compatible.",
+              "Host pressure 91%; transfer 103711 bytes; expected total 16803 ms."
+            ],
+            "sync_bytes": 103711,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 16803.2271011807
+          }
+        ],
+        "explanation": "Local execution is the conservative default.",
+        "local_cost_ms": 19194.66218828533,
+        "target": "LOCAL"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 18152.289,
+          "environment_warm": false,
+          "host_cpu_seconds": 1.671875,
+          "host_peak_ram_mb": 25.1171875,
+          "id": "3e54f1a9e719bba6a8c00b7a7dfeee821f698979291a091b",
+          "started": "2026-10-01T21:03:31.2833547+03:30",
+          "sync_ms": 0,
+          "target": "LOCAL"
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/worker",
+        "-v"
+      ],
+      "profile": "automatic:unittest",
+      "force_remote": false
+    },
+    {
+      "id": "3503303b6e1c53a84a4f9fe8dbda679fc4ca3a701116535f",
+      "state": "COMPLETED",
+      "created": "2026-10-01T20:54:45.6098188+03:30",
+      "finished": "2026-10-01T20:54:51.7719844+03:30",
+      "decision": {
+        "target": "worker-38f56351d6f51c4df17cff10",
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 21%, including transfer/setup and host pressure.",
+        "candidates": [
+          {
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "eligible": true,
+            "reasons": [
+              "node 26.3.1 is compatible.",
+              "Dependency environment warm: true (independent of changed source files).",
+              "Host pressure 100%; transfer 150380 bytes; expected total 2974 ms."
+            ],
+            "total_cost_ms": 2973.7186049059997,
+            "benefit": 0.20701539788155737,
+            "sync_bytes": 150380,
+            "environment_warm": true
+          }
+        ],
+        "local_cost_ms": 3750.0332250610786
+      },
+      "attempts": [
+        {
+          "id": "a07dce14b95211961b17725cb4c24c323fef987b47f8aad5",
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "started": "2026-10-01T20:54:45.8169435+03:30",
+          "duration_ms": 5955.04,
+          "bytes_sent": 150380,
+          "sync_ms": 209.49,
+          "cache_warm": false,
+          "environment_warm": true,
+          "worker_peak_ram_mb": 170.63671875
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.046875,
+        "peak_ram_mb": 11.85546875,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    },
+    {
+      "id": "ff72e2bf278d8f9d362f9a14d1bf2f274e961d38c94acfa7",
+      "state": "COMPLETED",
+      "created": "2026-10-01T20:28:40.9790516+03:30",
+      "finished": "2026-10-01T20:28:46.660426+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.17124784639602003,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "python 3.13.13 is compatible.",
+              "Host pressure 95%; transfer 0 bytes; expected total 16796 ms."
+            ],
+            "sync_bytes": 0,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 16795.660999999996
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 17%, including transfer/setup and host pressure.",
+        "local_cost_ms": 20266.204952784738,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 4772.445,
+          "environment_warm": false,
+          "id": "66e706c7a204ba83e4dee1b56a6f04803ea548cbf952fbd5",
+          "started": "2026-10-01T20:28:41.887981+03:30",
+          "sync_ms": 128.595,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 25.19921875
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.046875,
+        "peak_ram_mb": 47.96484375,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/worker",
+        "-v"
+      ],
+      "profile": "automatic:unittest",
+      "force_remote": false
+    },
+    {
+      "id": "ca8584f23c272b3928fab759f31368c9fa68b8726b38ac00",
+      "state": "COMPLETED",
+      "created": "2026-10-01T20:28:05.9456937+03:30",
+      "finished": "2026-10-01T20:28:17.6782043+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": -0.44486993148748916,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "node 26.3.1 is compatible.",
+              "Dependency environment warm: false (independent of changed source files).",
+              "Host pressure 94%; transfer 238141 bytes; expected total 4980 ms."
+            ],
+            "sync_bytes": 238141,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 4980.121094571699
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit -44%, including transfer/setup and host pressure.",
+        "local_cost_ms": 3446.760837111947,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 238141,
+          "cache_warm": false,
+          "duration_ms": 11231.285,
+          "environment_warm": false,
+          "id": "77d4f1391501b5948035221cbb062d837da3e5c960d0a297",
+          "started": "2026-10-01T20:28:06.4469186+03:30",
+          "sync_ms": 314.261,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 169.046875
+        }
+      ],
+      "adapter_metrics": {
+        "cpu_seconds": 0.03125,
+        "peak_ram_mb": 12.32421875,
+        "scope": "Command adapter process only; daemon, ADB and dashboard excluded."
+      },
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": true
+    },
+    {
+      "id": "2a95d4a7dd07f3fbbf99b4923c99b737b9da09fd8611640f",
+      "state": "COMPLETED",
+      "created": "2026-10-01T20:26:55.1429207+03:30",
+      "finished": "2026-10-01T20:26:57.3170637+03:30",
+      "decision": {
+        "candidates": null,
+        "explanation": "Approved task executed by its original local runtime; measured adapter observation.",
+        "local_cost_ms": 0,
+        "target": "LOCAL"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 2169.926,
+          "environment_warm": false,
+          "host_cpu_seconds": 3.140625,
+          "host_peak_ram_mb": 132.76953125,
+          "id": "bef224c91b815ab22098f919999011a34bd4a57c92725a4c",
+          "started": "2026-10-01T20:26:55.1429207+03:30",
+          "sync_ms": 0,
+          "target": "LOCAL"
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    },
+    {
+      "id": "5918db776ea52362d24ef921e22a55d50e5105a42e56e9d4",
+      "state": "COMPLETED",
+      "created": "2026-10-01T20:22:52.0193132+03:30",
+      "finished": "2026-10-01T20:22:53.750806+03:30",
+      "decision": {
+        "candidates": null,
+        "explanation": "Approved task executed by its original local runtime; measured adapter observation.",
+        "local_cost_ms": 0,
+        "target": "LOCAL"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 1729.906,
+          "environment_warm": false,
+          "host_cpu_seconds": 3.078125,
+          "host_peak_ram_mb": 119.23828125,
+          "id": "e48fa14aaab26b9ee1ee9adeaaaa4bff68c74ba7557c780b",
+          "started": "2026-10-01T20:22:52.0193132+03:30",
+          "sync_ms": 0,
+          "target": "LOCAL"
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    },
+    {
+      "id": "e7c1610eb94ba94c881cfc1442454fa42afa2e81d72057c1",
+      "state": "COMPLETED",
+      "created": "2026-10-01T19:36:53.8556589+03:30",
+      "finished": "2026-10-01T19:36:59.428323+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": 0.22525363253426953,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "node 26.3.1 is compatible.",
+              "Host pressure 100%; transfer 0 bytes; expected total 3643 ms."
+            ],
+            "sync_bytes": 0,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 3642.923710624999
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit 23%, including transfer/setup and host pressure.",
+        "local_cost_ms": 4702.085564520104,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 4961.583,
+          "environment_warm": false,
+          "id": "a6366739dd4bc6868057ebdce5858063957fe5ab0cdbe7ff",
+          "started": "2026-10-01T19:36:54.4667397+03:30",
+          "sync_ms": 62.287,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 163.140625
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    },
+    {
+      "id": "b1ffc23a2b77bab4347a48536e82cc31a0c9ac0d3547eb3c",
+      "state": "COMPLETED",
+      "created": "2026-10-01T19:33:43.0763316+03:30",
+      "finished": "2026-10-01T19:33:56.6352594+03:30",
+      "decision": {
+        "candidates": [
+          {
+            "benefit": -0.21239886145095194,
+            "eligible": true,
+            "environment_warm": false,
+            "reasons": [
+              "node 26.3.1 is compatible.",
+              "Host pressure 99%; transfer 463921 bytes; expected total 5664 ms."
+            ],
+            "sync_bytes": 463921,
+            "target": "worker-38f56351d6f51c4df17cff10",
+            "total_cost_ms": 5663.987672493198
+          }
+        ],
+        "explanation": "worker-38f56351d6f51c4df17cff10: estimated benefit -21%, including transfer/setup and host pressure.",
+        "local_cost_ms": 4671.719722430915,
+        "target": "worker-38f56351d6f51c4df17cff10"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 463921,
+          "cache_warm": false,
+          "duration_ms": 13364.722,
+          "environment_warm": false,
+          "id": "ec3ddb237be97d8c1571f6439bff8480a78eeff1f6651252",
+          "started": "2026-10-01T19:33:43.2705368+03:30",
+          "sync_ms": 1010.374,
+          "target": "worker-38f56351d6f51c4df17cff10",
+          "worker_peak_ram_mb": 147.74609375
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": true
+    },
+    {
+      "id": "8ec6a63fb0b6b4de16c7ee84315a1efbde5cdd1fdb3b927d",
+      "state": "COMPLETED",
+      "created": "2026-10-01T19:29:05.622032+03:30",
+      "finished": "2026-10-01T19:29:07.9673735+03:30",
+      "decision": {
+        "candidates": null,
+        "explanation": "Approved task executed by its original local runtime; measured adapter observation.",
+        "local_cost_ms": 0,
+        "target": "LOCAL"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 2343.192,
+          "environment_warm": false,
+          "host_cpu_seconds": 3.609375,
+          "host_peak_ram_mb": 134.8046875,
+          "id": "3182aeb138ff328badd50b5020d1e795cd7d3d7c6b1406d2",
+          "started": "2026-10-01T19:29:05.622032+03:30",
+          "sync_ms": 0,
+          "target": "LOCAL"
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    },
+    {
+      "id": "3917f137f4c5cc473ae356862dfd0d23b9f6178364184c37",
+      "state": "COMPLETED",
+      "created": "2026-10-01T19:28:26.2961866+03:30",
+      "finished": "2026-10-01T19:28:28.5795997+03:30",
+      "decision": {
+        "candidates": null,
+        "explanation": "Approved task executed by its original local runtime; measured adapter observation.",
+        "local_cost_ms": 0,
+        "target": "LOCAL"
+      },
+      "attempts": [
+        {
+          "bytes_sent": 0,
+          "cache_warm": true,
+          "duration_ms": 2281.535,
+          "environment_warm": false,
+          "host_cpu_seconds": 3.171875,
+          "host_peak_ram_mb": 124.79296875,
+          "id": "c683a8414c56d5a9b4b98607da18278b0f24dda2c6495e3b",
+          "started": "2026-10-01T19:28:26.2961866+03:30",
+          "sync_ms": 0,
+          "target": "LOCAL"
+        }
+      ],
+      "adapter_metrics": null,
+      "exit_code": 0,
+      "argv": [
+        "tsc",
+        "--noEmit"
+      ],
+      "profile": "automatic:typecheck",
+      "force_remote": false
+    }
+  ]
+}

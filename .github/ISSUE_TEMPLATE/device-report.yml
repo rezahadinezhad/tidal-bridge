@@ -1,0 +1,51 @@
+name: Device report
+description: Tell us how Tidal Bridge ran on your phone.
+title: "Device report: "
+labels: [device-report]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for trying Tidal Bridge on your phone. Every report helps others know what to expect.
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model
+      placeholder: Pixel 8 Pro (GC3VE)
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      placeholder: "15"
+    validations:
+      required: true
+  - type: input
+    id: ram
+    attributes:
+      label: RAM and chipset
+      placeholder: 12 GB, Tensor G3
+  - type: input
+    id: version
+    attributes:
+      label: Tidal Bridge version or commit
+  - type: dropdown
+    id: result
+    attributes:
+      label: How did it go?
+      options:
+        - Everything worked
+        - Worked, with problems
+        - Did not work
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `tidalbridge doctor`
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: What you ran and what you noticed
+      description: Commands that moved to the phone, timings, heat, anything odd. Please leave out private paths and project names.

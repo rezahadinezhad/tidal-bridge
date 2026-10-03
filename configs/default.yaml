@@ -1,0 +1,12 @@
+bind: 127.0.0.1:47831
+mode: AUTO
+paused: false
+adb: ""
+queue_size: 64
+local_concurrency: 1
+max_concurrency: 4
+worker_concurrency: 2
+reserve_ram_mb: 1024
+minimum_benefit: 0.15
+# Real devices must be paired explicitly. No serial or token is shipped.
+approved: []

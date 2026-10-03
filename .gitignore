@@ -1,0 +1,11 @@
+.tools/
+bin/
+.tidalbridge/
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+*.log
+benchmark-results/
+prebuilt/
+dist/

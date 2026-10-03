@@ -1,0 +1,26 @@
+{
+  "android_version": "16",
+  "browser": {
+    "jsVersion": "15.2.124.21",
+    "product": "Chrome/152.0.7977.82",
+    "protocolVersion": "1.3",
+    "revision": "@d04cdb24d67b081f6cf80200ffc5233f44b61109",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36"
+  },
+  "captured_at": "2026-10-01T16:52:29.9586669Z",
+  "device_id": "worker-38f56351d6f51c4df17cff10",
+  "device_model": "SM-S918B",
+  "file": "phone.png",
+  "orientation": "portrait",
+  "physical_device": true,
+  "rendering_engine": "Android Chrome",
+  "tier": "A: real Android rendering with viewport emulation; desktop fidelity is unverified",
+  "url": "http://127.0.0.1:47851/",
+  "viewport": {
+    "name": "phone",
+    "width": 390,
+    "height": 844,
+    "dpr": 1
+  },
+  "viewport_emulated": true
+}

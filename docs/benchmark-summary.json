@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-01",
+  "host_version": "0.1.2",
+  "idle": {
+    "duration_seconds": 30,
+    "dashboard_open": true,
+    "rss_average_mb": 19.0390625,
+    "rss_peak_mb": 19.1171875,
+    "daemon_cpu_average_percent": 0.5209066822032544
+  },
+  "comparisons": [
+    {
+      "workload": "python_cpu",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 2599.6,
+      "worker_peak_ram_mb": null,
+      "stdout": null
+    },
+    {
+      "workload": "python_cpu",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 2586.6,
+      "worker_peak_ram_mb": 9.96484375,
+      "stdout": null
+    },
+    {
+      "workload": "python_tests",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 445.3,
+      "worker_peak_ram_mb": null,
+      "stdout": null
+    },
+    {
+      "workload": "python_tests",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 682.4,
+      "worker_peak_ram_mb": 1.28515625,
+      "stdout": null
+    },
+    {
+      "workload": "node_cpu",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 529.0,
+      "worker_peak_ram_mb": null,
+      "stdout": null
+    },
+    {
+      "workload": "node_cpu",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 1441.0,
+      "worker_peak_ram_mb": 43.68359375,
+      "stdout": null
+    },
+    {
+      "workload": "compression",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 514.5,
+      "worker_peak_ram_mb": null,
+      "stdout": null
+    },
+    {
+      "workload": "compression",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 409.6,
+      "worker_peak_ram_mb": 1.26953125,
+      "stdout": null
+    },
+    {
+      "workload": "json_parse",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 435.1,
+      "worker_peak_ram_mb": null,
+      "stdout": null
+    },
+    {
+      "workload": "json_parse",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 965.8,
+      "worker_peak_ram_mb": 16.5546875,
+      "stdout": null
+    },
+    {
+      "workload": "memory_256mb",
+      "target": "local",
+      "state": "COMPLETED",
+      "attempt_ms": 3741.9,
+      "worker_peak_ram_mb": null,
+      "stdout": "{\"allocated_mb\": 256, \"process_rss_mb\": 270.98828125}\r\n"
+    },
+    {
+      "workload": "memory_256mb",
+      "target": "real_android",
+      "state": "COMPLETED",
+      "attempt_ms": 3672.0,
+      "worker_peak_ram_mb": 267.93359375,
+      "stdout": "{\"allocated_mb\": 256, \"process_rss_mb\": 267.93359375}\n"
+    }
+  ]
+}

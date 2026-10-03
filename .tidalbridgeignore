@@ -1,0 +1,10 @@
+# Host-specific dependencies and credentials are also excluded by the engine.
+.tools/
+bin/
+.tidalbridge/
+node_modules/
+.venv/
+benchmark-results/
+*.apk
+*.zip
+TIDAL_BRIDGE_BUILD_PROMPT.md
