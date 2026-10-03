@@ -2,6 +2,10 @@
 
 **Let the phone on your desk run your laptop's tests, type-checks and dev servers.**
 
+[![Tidal Bridge in 58 seconds: play the intro video](docs/images/intro-cover.jpg)](https://github.com/rezahadinezhad/tidal-bridge/releases/download/v0.2.1/tidal-bridge-intro.mp4)
+
+<p align="center"><sub>▶ The 58-second intro (MP4, sound on)</sub></p>
+
 AI coding agents such as Claude Code and Codex run tests, type-checks, linters and dev servers all day. On a laptop already busy with a browser, Docker and the agents themselves, that means fans, swapping and waiting, while a phone with eight cores and 12 GB of RAM sits idle next to it.
 
 Tidal Bridge connects the two with a USB cable. You and your agents run commands as usual. Tidal Bridge decides for each one whether the phone or the laptop runs it, and the output, exit code and file paths come back exactly as if it had run on the laptop. When the phone is unplugged, hot or busy, everything simply runs on the laptop.
