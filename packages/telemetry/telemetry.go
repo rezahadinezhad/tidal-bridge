@@ -37,7 +37,10 @@ func (m *Monitor) Snapshot() Snapshot { m.mu.RLock(); defer m.mu.RUnlock(); retu
 func (m *Monitor) Run(ctx context.Context) {
 	p, _ := process.NewProcess(int32(os.Getpid()))
 	m.sample(p)
-	last := time.Now()
+	// cpu.Percent(0) measures since the previous call and the first has none,
+	// so the next reading comes after one second instead of ten: a freshly
+	// started service must not mistake a busy laptop for an idle one.
+	last := time.Now().Add(-9 * time.Second)
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {

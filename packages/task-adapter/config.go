@@ -36,8 +36,9 @@ type Task struct {
 	ReversePorts     []int    `json:"reverse_ports,omitempty"`
 	RemoteArgs       []string `json:"remote_args,omitempty"`
 	ProvisionScripts bool     `json:"provision_scripts,omitempty"`
-	// Engine "native" runs Node tools on the worker without proot when the
-	// command allows it; anything else keeps the default.
+	// Engine: Debian tasks run Node tools natively on the worker (no proot)
+	// whenever the command allows it, as detected commands do; the worker
+	// keeps proot for anything else. "proot" opts a task out.
 	Engine string `json:"engine,omitempty"`
 	// WriteBack lets the command change files (formatters, fixers, code
 	// generators): changes made on the worker are copied back.
@@ -304,10 +305,16 @@ func Spec(project Project, root, cwd string, argv []string) (protocol.JobSpec, b
 	if project.Detected {
 		profile = "detected:" + matched.Name
 	}
+	engine := matched.Engine
+	if engine == "" && runtime == "debian" {
+		engine = "native"
+	} else if engine == "proot" {
+		engine = ""
+	}
 	return protocol.JobSpec{Argv: portable, Workspace: root, WorkingDirectory: filepath.ToSlash(rel), Profile: profile,
 		EstimatedDurationMS: estimate, TimeoutSeconds: timeout, ExpectedOutputs: matched.ExpectedOutputs,
 		Requirements: protocol.Requirements{Runtimes: matched.RuntimeRequirements},
-		Runtime:      runtime, Engine: matched.Engine, Service: matched.Service, Ports: matched.Ports, ReversePorts: reverse, AttachedClient: matched.Service,
+		Runtime:      runtime, Engine: engine, Service: matched.Service, Ports: matched.Ports, ReversePorts: reverse, AttachedClient: matched.Service,
 		Policy: protocol.Policy{LocalFallback: true, Idempotent: matched.Idempotent && !matched.Service, Retryable: matched.Idempotent && !matched.Service, Provision: matched.Provision,
 			ProvisionScripts: matched.ProvisionScripts, SyncEnvFiles: project.SyncEnvFiles, WriteBack: matched.WriteBack}}, true
 }

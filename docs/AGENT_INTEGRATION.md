@@ -82,7 +82,7 @@ Task fields: `command` is an exact prefix; the longest match wins. Other fields:
 - `expected_outputs`: files copied back after the job.
 - `runtime_requirements`: version constraints.
 - `write_back`: the command may change files (formatters, fixers, code generators); `--fix` and `--write` are accepted, and changed, created and deleted files are copied back as described above.
-- `engine`: `native` runs Node tools on the phone without `proot` when the command allows it (detected commands use it by default).
+- `engine`: Node tools run on the phone without `proot` whenever the command allows it (`native`, the default for Debian tasks and detected commands); `proot` keeps a task under `proot`.
 - `service`, `ports`, `remote_args`: run a dev server. It moves only when its ports are free on the laptop. `remote_args` are appended on the worker, for example to bind loopback.
 
 `.tidalbridgeignore` at the project root adds exclusions, and decides after every `.gitignore`: `!crypto/messenger/pkg/` syncs generated output that a `.gitignore` excludes but a remote job needs.
