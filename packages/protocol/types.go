@@ -3,7 +3,7 @@ package protocol
 import "time"
 
 const Version = 1
-const WorkerVersion = "0.2.0"
+const WorkerVersion = "0.2.1"
 
 type Resources struct {
 	CPUPercent         float64 `json:"cpu_percent"`

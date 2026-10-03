@@ -43,7 +43,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 PROTOCOL = 1
 MAX_JSON = 16 * 1024 * 1024
 MAX_LOG = 64 * 1024 * 1024
