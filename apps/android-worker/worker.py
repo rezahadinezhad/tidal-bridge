@@ -54,6 +54,11 @@ KEEP_JOB_DIRS = 200
 # A removed copy is rebuilt from the laptop the next time it is needed.
 IDLE_SECONDS = 14 * 86400
 PROOT_TEST_WORKERS = 2
+# Past its time limit a job that is still printing keeps running: a slow phone
+# is not a hung job. It stops after SILENT_LIMIT seconds without output, or at
+# OVERTIME times its limit. The host waits as long (overtime in host.go).
+SILENT_LIMIT = 600
+OVERTIME = 3
 # Write-back jobs report files they changed outside these directories.
 SKIP_CHANGE_DIRS = {"node_modules", ".tidalbridge-deps", ".git", ".hg", ".svn", ".next", ".nuxt", ".svelte-kit", ".turbo", ".parcel-cache", ".cache", ".vite",
                     "dist", "build", "out", "coverage", "__pycache__", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
@@ -898,11 +903,7 @@ class Worker:
         monitor = threading.Thread(target=self.sample, args=(jid, proc, monitor_stop), daemon=True)
         monitor.start()
         try:
-            code = proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            self.stop_process(proc)
-            proc.wait()
-            raise TimeoutError("Job timed out")
+            code = self.wait_for(proc, timeout, [directory / "stdout.log", directory / "stderr.log"])
         finally:
             monitor_stop.set()
             monitor.join(timeout=1)
@@ -913,6 +914,23 @@ class Worker:
         if jid in self.cancelled:
             raise InterruptedError("Job cancelled")
         return code
+
+    def wait_for(self, proc: subprocess.Popen, timeout: float | None, logs: list[pathlib.Path]) -> int:
+        if timeout is None:
+            return proc.wait()
+        start, limit = time.monotonic(), timeout
+        while True:
+            try:
+                return proc.wait(timeout=max(0.01, start + limit - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                pass
+            elapsed = time.monotonic() - start
+            silent = time.time() - max((p.stat().st_mtime for p in logs if p.exists()), default=0.0)
+            if silent >= SILENT_LIMIT or elapsed >= timeout * OVERTIME:
+                self.stop_process(proc)
+                proc.wait()
+                raise TimeoutError("Job timed out" if silent >= SILENT_LIMIT else "Job timed out at three times its limit")
+            limit = elapsed + max(0.05, min(30.0, SILENT_LIMIT - silent, timeout * OVERTIME - elapsed))
 
     # ---------------------------------------------------------- environments
     def environment_key(self, hashes: dict) -> str:

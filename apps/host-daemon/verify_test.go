@@ -1,6 +1,8 @@
 package host
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"tidalbridge/packages/protocol"
@@ -20,7 +22,18 @@ func TestConfirmationsBuildTrustOrQuarantine(t *testing.T) {
 	explicit := spec
 	explicit.Profile = "automatic:typecheck"
 	if h.needsConfirmation(explicit) || h.RecordConfirmation(protocol.Confirmation{Spec: explicit, RemoteExitCode: 1, LocalExitCode: 1}) == nil {
-		t.Fatal("explicit task files keep their previous behavior")
+		t.Fatal("a task-file command that is neither replay-safe nor a test or check is not repeated")
+	}
+	runner := explicit
+	runner.Argv = []string{"vitest", "run", "src/a.test.ts"}
+	if !h.needsConfirmation(runner) {
+		t.Fatal("a task-file test runner is verified like a detected one")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"scripts": {"typecheck": "tsc --noEmit"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !h.needsConfirmation(explicit) {
+		t.Fatal("a task-file npm script that runs a read-only check is verified")
 	}
 	for range 2 {
 		if err := h.RecordConfirmation(protocol.Confirmation{Spec: spec, RemoteExitCode: 2, LocalExitCode: 2}); err != nil {

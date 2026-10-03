@@ -43,7 +43,7 @@ Until that comparison exists, phone runs replace only the default one-second gue
 
 ## Trust
 
-A failed phone run is re-run on this laptop until the phone and laptop agree twice. This covers detected commands and replay-safe task-file commands. That exact command, when it passes here but fails on the phone, stays here for a week, and its runner is checked again. Trust belongs to the tool and its options, not to the files it is pointed at, so two agreeing checks of a runner cover all its test files.
+A failed phone run is re-run on this laptop until the phone and laptop agree twice. This covers detected commands, and task-file commands that are replay-safe or run a test runner or read-only check (directly or as an npm script). That exact command, when it passes here but fails on the phone, stays here for a week, and its runner is checked again. Trust belongs to the tool and its options, not to the files it is pointed at, so two agreeing checks of a runner cover all its test files.
 
 A phone failure where a test ran out of time is always re-checked here, because the phone is slower; if the laptop passes, that exact command stays here for a week. A phone failure caused by a missing file from outside the project folder is always re-run here, whatever the trust. Tidal Bridge then copies that file's folder beside the project on the phone (the file alone above 2,000 files or 64 MB), one level up as on the laptop. Command adapters ignore `TIDALBRIDGE_FORCE_LOCAL`; only the CLI and MCP can still force this laptop, and such runs are marked when the phone could have taken them.
 

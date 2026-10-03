@@ -9,12 +9,13 @@ import (
 	"tidalbridge/packages/config"
 	"tidalbridge/packages/protocol"
 	"tidalbridge/packages/scheduler"
+	adapter "tidalbridge/packages/task-adapter"
 	classifier "tidalbridge/packages/task-classifier"
 	"time"
 )
 
 // Phone results are trusted through verification: a failed worker run of a
-// detected command, or of a replay-safe task-file command, is rerun locally
+// detected command, or of a task-file test, check or replay-safe command, is rerun locally
 // until both sides have agreed twice, and a disagreement keeps the command
 // local for a week.
 const (
@@ -35,9 +36,42 @@ type quarantined struct {
 
 func detected(spec protocol.JobSpec) bool { return strings.HasPrefix(spec.Profile, "detected:") }
 
-// verifiable: commands whose phone failures are checked here until trusted.
+// verifiable: commands whose phone failures are checked here until trusted:
+// detected commands, and task-file commands that are replay-safe or run the
+// test runners and read-only checks that detection verifies too. Other
+// task-file commands may have side effects and are not repeated.
 func verifiable(spec protocol.JobSpec) bool {
-	return detected(spec) || strings.HasPrefix(spec.Profile, "automatic:") && spec.Policy.Idempotent && !spec.Service
+	if detected(spec) {
+		return true
+	}
+	return strings.HasPrefix(spec.Profile, "automatic:") && !spec.Service && (spec.Policy.Idempotent || checksOrTests(spec))
+}
+
+// checksOrTests: a test runner or a read-only check, run directly or as the
+// project's npm script.
+func checksOrTests(spec protocol.JobSpec) bool {
+	argv := spec.Argv
+	if len(argv) >= 2 && argv[0] == "npm" && (argv[1] == "test" || argv[1] == "run" && len(argv) >= 3) {
+		name := "test"
+		if argv[1] == "run" {
+			name = argv[2]
+		}
+		var pkg struct {
+			Scripts map[string]string `json:"scripts"`
+		}
+		b, err := os.ReadFile(filepath.Join(spec.Workspace, "package.json"))
+		if err != nil || json.Unmarshal(b, &pkg) != nil {
+			return false
+		}
+		argv = strings.Fields(pkg.Scripts[name])
+	}
+	if kind := adapter.ScriptKind(strings.Join(argv, " ")); kind == "check" || kind == "test" {
+		return true
+	}
+	if len(argv) > 0 && argv[0] == "pytest" {
+		return true
+	}
+	return len(argv) >= 3 && argv[0] == "python" && (argv[1] == "-m" && (argv[2] == "pytest" || argv[2] == "unittest" || argv[2] == "mypy") || argv[1] == "manage.py" && argv[2] == "test")
 }
 
 // trustKey identifies a command for trust and quarantine: its project, tool
