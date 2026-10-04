@@ -74,14 +74,26 @@ func checksOrTests(spec protocol.JobSpec) bool {
 	return len(argv) >= 3 && argv[0] == "python" && (argv[1] == "-m" && (argv[2] == "pytest" || argv[2] == "unittest" || argv[2] == "mypy") || argv[1] == "manage.py" && argv[2] == "test")
 }
 
+// testNameFilters take the names of the tests to run, which say no more
+// about the runner than the file names do.
+var testNameFilters = map[string]bool{"-t": true, "--testNamePattern": true, "-k": true, "--grep": true}
+
 // trustKey identifies a command for trust and quarantine: its project, tool
-// versions and options, without the files or folders it names, so checking
-// one test file vouches for the runner rather than for that file alone.
+// versions and options, without the files, folders or test names it selects,
+// so checking one test vouches for the runner rather than for that test alone.
 func trustKey(spec protocol.JobSpec) string {
 	classifier.Normalize(&spec)
 	argv := append([]string(nil), spec.Argv[:min(1, len(spec.Argv))]...)
+	filterValue := false
 	for _, arg := range spec.Argv[len(argv):] {
-		if strings.HasPrefix(arg, "-") || !strings.ContainsAny(arg, `/\.`) {
+		name, _, _ := strings.Cut(arg, "=")
+		switch {
+		case filterValue:
+			filterValue = false
+		case testNameFilters[name]:
+			argv = append(argv, name)
+			filterValue = name == arg
+		case strings.HasPrefix(arg, "-") || !strings.ContainsAny(arg, `/\.`):
 			argv = append(argv, arg)
 		}
 	}

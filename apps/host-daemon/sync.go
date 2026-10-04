@@ -40,5 +40,5 @@ func (h *Host) Sync(ctx context.Context, root, id string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"workspace_id": m.ID, "workspace_key": treeKey(abs), "device_id": id, "files": len(m.Files), "bytes_sent": sent, "cache_warm": sent == 0, "duration_ms": time.Since(started).Milliseconds()}, nil
+	return map[string]any{"workspace_id": m.ID, "workspace_key": key, "device_id": id, "files": len(m.Files), "bytes_sent": sent, "cache_warm": sent == 0, "duration_ms": time.Since(started).Milliseconds()}, nil
 }

@@ -292,8 +292,10 @@ func (h *Host) landFlight(id string) {
 	if stored := h.reuse[f.key]; stored != nil {
 		found := *stored
 		e = &found
-		if e.ExitCode != 0 {
-			h.dropReuseLocked(stored) // the joiners were its one reuse
+		if e.ExitCode != 0 && len(f.joiners) > 0 {
+			// The joiners were its one reuse. Unjoined, it stays: it answers
+			// the agent's next identical run, and no pre-run repeats it.
+			h.dropReuseLocked(stored)
 		}
 	}
 	h.reuseMu.Unlock()
