@@ -308,7 +308,7 @@ func (h *Host) syncTree(ctx context.Context, node protocol.WorkerNode, workspace
 				}
 			}
 			var n int64
-			n, err = h.uploadAll(ctx, node, workspace, batch)
+			n, err = h.sendContent(ctx, node, workspace, batch)
 			sent += n
 			if err != nil {
 				if attempt == 0 && strings.Contains(err.Error(), "invalid blob") && refreshEntries(workspace, m, batch) {

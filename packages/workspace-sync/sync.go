@@ -277,6 +277,7 @@ func ScanWith(ctx context.Context, root string, opts Options) (protocol.Manifest
 		cache.load()
 	}
 	seenCache := map[string]bool{}
+	var unhashed []pendingHash
 	add := func(path string, info os.FileInfo) error {
 		select {
 		case <-ctx.Done():
@@ -308,32 +309,27 @@ func ScanWith(ctx context.Context, root string, opts Options) (protocol.Manifest
 				hash = c.Hash
 			}
 		}
-		if hash == "" {
-			f, e := os.Open(full)
-			if e != nil {
-				if os.IsNotExist(e) {
-					return nil
-				}
-				return e
-			}
-			digest := sha256.New()
-			_, e = io.CopyBuffer(digest, f, make([]byte, 64*1024))
-			f.Close()
-			if e != nil {
-				return e
-			}
-			hash = hex.EncodeToString(digest.Sum(nil))
-			if cache != nil {
-				cache.entries[path] = cacheEntry{Size: info.Size(), ModNs: info.ModTime().UnixNano(), Hash: hash}
-				cache.dirty = true
-			}
-		}
 		seenCache[path] = true
 		m.Files = append(m.Files, protocol.FileEntry{Path: path, Hash: hash, Size: info.Size(), Executable: info.Mode()&0111 != 0})
 		m.TotalBytes += info.Size()
+		if hash == "" {
+			unhashed = append(unhashed, pendingHash{index: len(m.Files) - 1, full: full, info: info})
+		}
 		return nil
 	}
-	finish := func() {
+	finish := func() error {
+		if err := hashAll(ctx, m.Files, unhashed, cache); err != nil {
+			return err
+		}
+		kept := m.Files[:0]
+		m.TotalBytes = 0
+		for _, f := range m.Files {
+			if f.Hash != "" { // empty: deleted while hashing
+				kept = append(kept, f)
+				m.TotalBytes += f.Size
+			}
+		}
+		m.Files = kept
 		sort.Slice(m.Files, func(i, j int) bool { return m.Files[i].Path < m.Files[j].Path })
 		m.ID = snapshotID(abs, m.Files)
 		if cache != nil {
@@ -345,6 +341,7 @@ func ScanWith(ctx context.Context, root string, opts Options) (protocol.Manifest
 			}
 			cache.save()
 		}
+		return nil
 	}
 	if listed, ok, e := gitList(ctx, abs); ok {
 		// Version control ignores build output that a project may bring back.
@@ -362,14 +359,86 @@ func ScanWith(ctx context.Context, root string, opts Options) (protocol.Manifest
 				return m, e
 			}
 		}
-		finish()
-		return m, nil
+		return m, finish()
 	} else if e != nil && ctx.Err() != nil {
 		return m, e
 	}
 	err = walk(ctx, abs, defaults, overrides, opts, add)
-	finish()
+	if e := finish(); err == nil {
+		err = e
+	}
 	return m, err
+}
+
+type pendingHash struct {
+	index int
+	full  string
+	info  os.FileInfo
+}
+
+// hashReaders: a file's first read waits for the antivirus scan, which runs
+// per file, so several readers index a new project several times sooner
+// (2,000 new files: 102 s with one reader, 18 s with eight).
+const hashReaders = 8
+
+// hashAll fills in the hashes of files the cache did not know, several at a
+// time; a file deleted meanwhile keeps an empty hash and is dropped.
+func hashAll(ctx context.Context, files []protocol.FileEntry, pending []pendingHash, cache *hashCache) error {
+	work := make(chan pendingHash)
+	var (
+		wg    sync.WaitGroup
+		mu    sync.Mutex
+		first error
+	)
+	for range min(hashReaders, len(pending)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			buffer := make([]byte, 64*1024)
+			for p := range work {
+				hash, err := hashWith(p.full, buffer)
+				mu.Lock()
+				switch {
+				case err == nil:
+					files[p.index].Hash = hash
+					if cache != nil {
+						cache.entries[files[p.index].Path] = cacheEntry{Size: p.info.Size(), ModNs: p.info.ModTime().UnixNano(), Hash: hash}
+						cache.dirty = true
+					}
+				case !os.IsNotExist(err) && first == nil:
+					first = err
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+feed:
+	for _, p := range pending {
+		select {
+		case work <- p:
+		case <-ctx.Done():
+			break feed
+		}
+	}
+	close(work)
+	wg.Wait()
+	if first == nil {
+		first = ctx.Err()
+	}
+	return first
+}
+
+func hashWith(path string, buffer []byte) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	digest := sha256.New()
+	if _, err := io.CopyBuffer(digest, f, buffer); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(digest.Sum(nil)), nil
 }
 
 // projectRules reads the project's .tidalbridgeignore. Its rules apply after

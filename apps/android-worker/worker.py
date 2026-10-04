@@ -39,6 +39,7 @@ import subprocess
 import sys
 import threading
 import time
+import zlib
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -47,6 +48,7 @@ VERSION = "0.2.1"
 PROTOCOL = 1
 MAX_JSON = 16 * 1024 * 1024
 MAX_LOG = 64 * 1024 * 1024
+PACK_LIMIT = 64 * 1024 * 1024  # a blob pack, compressed or not
 MAX_SERVICES = 4
 KEEP_JOB_DIRS = 200
 # Project copies and cached file content nothing has used for two weeks are
@@ -618,7 +620,7 @@ class Worker:
                     abis=self.platform_info.get("ro.product.cpu.abilist", "").split(",") if android and not self.mock else ["simulated-arm64"],
                     runtimes=runtimes,
                     features=dict(shell_exec=True, workspace_sync=True, browser_qa=False, network_isolation=False,
-                                  workspace_trees=True, services=True, runtime_debian=debian,
+                                  workspace_trees=True, services=True, runtime_debian=debian, blob_pack=True,
                                   engine_native=bool(self.native and debian and self.native.ready())),
                     resources=self.resources(), simulated=bool(self.mock), active_services=services)
 
@@ -1284,6 +1286,46 @@ class Worker:
             self.prune()
             time.sleep(3600)
 
+    def store_pack(self, body: bytes, encoding: str) -> dict:
+        """Stores a pack of blobs sent in one request: records of a 64-hex
+        SHA-256, a 16-hex length and the content, the whole optionally
+        zlib-compressed. Each blob is checked against its hash before it is
+        kept; a mismatch fails the pack as an invalid blob, which the host
+        answers by re-reading the file."""
+        if encoding == "zlib":
+            inflate = zlib.decompressobj()
+            data = inflate.decompress(body, PACK_LIMIT)
+            if inflate.unconsumed_tail or not inflate.eof:
+                raise ValueError("invalid pack: larger than allowed or truncated")
+        elif encoding == "identity":
+            data = body
+        else:
+            raise ValueError("invalid pack encoding")
+        view, offset, stored = memoryview(data), 0, 0
+        blobs = self.root / "cache/blobs"
+        while offset < len(view):
+            header = bytes(view[offset:offset + 80])
+            try:
+                digest, length = header[:64].decode("ascii"), int(header[64:80], 16)
+            except (UnicodeDecodeError, ValueError):
+                raise ValueError("invalid pack record") from None
+            content = view[offset + 80:offset + 80 + length]
+            if len(header) < 80 or not HASH.fullmatch(digest) or len(content) != length:
+                raise ValueError("invalid pack record")
+            if hashlib.sha256(content).hexdigest() != digest:
+                raise ValueError("invalid blob: content does not match hash")
+            destination = blobs / digest
+            if not destination.exists():
+                temp = destination.with_suffix("." + secrets.token_hex(8) + ".tmp")
+                try:
+                    temp.write_bytes(content)
+                    os.replace(temp, destination)
+                finally:
+                    temp.unlink(missing_ok=True)
+            offset += 80 + length
+            stored += 1
+        return {"stored": stored, "bytes": offset}
+
     def storage_floor_mb(self) -> int:
         """Free storage the phone keeps for its owner: 5%, at least 3 GB."""
         return max(3072, shutil.disk_usage(self.root).total // 20 >> 20)
@@ -1431,6 +1473,11 @@ class Handler(BaseHTTPRequestHandler):
             elif self.command == "POST" and path == "/v1/sync/apply":
                 body = self.body()
                 self.respond(200, self.worker.apply_manifest(body, body.get("workspace_key"), body.get("nest") or ""))
+            elif self.command == "POST" and path == "/v1/blobs/pack":
+                size = int(self.headers.get("Content-Length", "-1"))
+                if not 0 <= size <= PACK_LIMIT:
+                    raise ValueError("invalid pack size")
+                self.respond(200, self.worker.store_pack(self.rfile.read(size), self.headers.get("X-Pack-Encoding", "identity")))
             elif self.command == "PUT" and path.startswith("/v1/blobs/"):
                 digest = path.rsplit("/", 1)[1]
                 size = int(self.headers.get("Content-Length", "-1"))

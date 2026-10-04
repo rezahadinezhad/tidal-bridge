@@ -33,7 +33,15 @@ type recentCommand struct {
 	spec     protocol.JobSpec
 	used     time.Time
 	services bool // its last phone run reached a laptop service
+	// One finished pre-run per agent run: answered stays set until the agent
+	// runs the command again (noteCommand makes a fresh entry). started
+	// spaces pre-runs that edits keep cancelling.
+	answered bool
+	started  time.Time
 }
+
+// prerunGap spaces pre-runs of one command while edits keep coming.
+const prerunGap = 15 * time.Second
 
 type projectWatch struct {
 	commands    []*recentCommand // most recent first
@@ -43,9 +51,9 @@ type projectWatch struct {
 
 // flight is a reusable job running on a phone, which identical commands join.
 type flight struct {
-	key, watch, node string
-	speculative      bool
-	joiners          []string
+	key, watch, node, scope string
+	speculative             bool
+	joiners                 []string
 }
 
 func watchKey(spec protocol.JobSpec) string {
@@ -105,7 +113,7 @@ func (h *Host) workspaceChanged(ws string) {
 	h.log.Debug("prerun_edit", "workspace", ws)
 	for id, f := range h.flights {
 		if f.speculative && f.watch == ws && len(f.joiners) == 0 {
-			go h.Cancel(id)
+			go h.cancelBecause(id, "Pre-run stopped: the files changed again.")
 		}
 	}
 	if w.timer != nil {
@@ -149,6 +157,12 @@ func (h *Host) prerun(ws string) {
 		return
 	}
 	for _, c := range candidates {
+		h.prerunMu.Lock()
+		spent := c.answered || now.Sub(c.started) < prerunGap
+		h.prerunMu.Unlock()
+		if spent {
+			continue
+		}
 		if c.services || h.phoneTakes(c.spec) > prerunLongest {
 			h.log.Debug("prerun_skip", "argv", c.spec.Argv, "reason", "long or uses laptop services")
 			continue
@@ -168,6 +182,9 @@ func (h *Host) prerun(ws string) {
 		spec := c.spec
 		spec.Speculative = true
 		spec.Policy.ForceRemote, spec.Policy.ForceLocal, spec.Policy.DeviceID = true, false, node
+		h.prerunMu.Lock()
+		c.started = now
+		h.prerunMu.Unlock()
 		if _, err := h.Submit(spec); err != nil {
 			h.log.Error("prerun_submit", "error", err.Error())
 		} else {
@@ -228,7 +245,7 @@ func (h *Host) startFlight(id string, spec protocol.JobSpec, m *protocol.Manifes
 	}
 	key := h.reuseKeyFor(spec, m)
 	h.prerunMu.Lock()
-	h.flights[id] = &flight{key: key, watch: watchKey(spec), node: node, speculative: spec.Speculative}
+	h.flights[id] = &flight{key: key, watch: watchKey(spec), node: node, scope: reuseScope(spec), speculative: spec.Speculative}
 	h.prerunMu.Unlock()
 }
 
@@ -249,9 +266,23 @@ func (h *Host) join(id, key string) bool {
 // run themselves when there is none (cancelled, failed to start, or not
 // reusable after all).
 func (h *Host) landFlight(id string) {
+	h.mu.RLock()
+	finished := h.jobs[id] != nil && h.jobs[id].ExitCode != nil
+	h.mu.RUnlock()
 	h.prerunMu.Lock()
 	f := h.flights[id]
 	delete(h.flights, id)
+	if f != nil && f.speculative && finished {
+		// Answered for this round: the next pre-run waits for the agent to
+		// run the command again (stopped pre-runs computed nothing).
+		if w := h.watches[f.watch]; w != nil {
+			for _, c := range w.commands {
+				if reuseScope(c.spec) == f.scope {
+					c.answered = true
+				}
+			}
+		}
+	}
 	h.prerunMu.Unlock()
 	if f == nil {
 		return
@@ -295,8 +326,18 @@ func (h *Host) preemptOn(node string) {
 	}
 	h.prerunMu.Unlock()
 	for _, id := range victims {
-		h.Cancel(id)
+		h.cancelBecause(id, "Pre-run stopped: real work needed the phone.")
 	}
+}
+
+// cancelBecause stops a job, recording why.
+func (h *Host) cancelBecause(id, reason string) {
+	h.mu.Lock()
+	if j := h.jobs[id]; j != nil && j.Finished == nil {
+		j.Error = reason
+	}
+	h.mu.Unlock()
+	h.Cancel(id)
 }
 
 // speculativeOn counts the pre-runs holding each phone, which routing treats

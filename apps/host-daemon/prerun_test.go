@@ -195,3 +195,63 @@ func TestEditsMadeWhileTheyRanArePreRunWhenTheRunEnds(t *testing.T) {
 		}
 	}
 }
+
+func TestOneFinishedPreRunPerAgentRunAndClearReasons(t *testing.T) {
+	h, spec, m := prerunFixture(t)
+	h.noteCommand(spec, false)
+	h.prerun(watchKey(spec))
+	first := preruns(h)
+	if len(first) != 1 {
+		t.Fatal("the first edit after the agent's run starts a pre-run")
+	}
+	h.cancelBecause(first[0].ID, "Pre-run stopped: the files changed again.")
+	if j, _ := h.Job(first[0].ID); j.State != "CANCELLED" || j.Error != "Pre-run stopped: the files changed again." {
+		t.Fatal("a stopped pre-run says why, not 'Cancelled by user'", j.Error)
+	}
+	h.prerun(watchKey(spec))
+	if len(preruns(h)) != 1 {
+		t.Fatal("pre-runs of one command are spaced while edits keep cancelling them")
+	}
+	h.prerunMu.Lock()
+	h.watches[watchKey(spec)].commands[0].started = time.Time{}
+	h.prerunMu.Unlock()
+	h.prerun(watchKey(spec))
+	second := preruns(h)
+	if len(second) != 2 {
+		t.Fatal("a stopped pre-run computed nothing, so a later quiet moment tries again")
+	}
+	var finished *protocol.Job
+	for _, j := range second {
+		if j.ID != first[0].ID {
+			finished = j
+		}
+	}
+	h.startFlight(finished.ID, finished.Spec, m, "worker-a")
+	code := 1
+	h.mu.Lock()
+	finished.ExitCode, finished.State = &code, "FAILED"
+	h.mu.Unlock()
+	h.landFlight(finished.ID)
+	time.Sleep(100 * time.Millisecond) // landFlight looks for the next pre-run in the background
+	h.prerunMu.Lock()
+	h.watches[watchKey(spec)].commands[0].started = time.Time{}
+	h.prerunMu.Unlock()
+	h.prerun(watchKey(spec))
+	if len(preruns(h)) != 2 {
+		t.Fatal("after one finished pre-run, the command waits for the agent to run it again")
+	}
+	h.noteCommand(spec, false)
+	h.prerun(watchKey(spec))
+	if len(preruns(h)) != 3 {
+		t.Fatal("the agent's next run makes it eligible again")
+	}
+	status := h.Status().(map[string]any)
+	for _, j := range status["jobs"].([]protocol.Job) {
+		if j.Spec.Speculative {
+			t.Fatal("pre-runs stay out of the jobs list")
+		}
+	}
+	if status["relief"].(map[string]any)["preruns_today"] != 1 {
+		t.Fatal("finished pre-runs are counted", status["relief"])
+	}
+}
