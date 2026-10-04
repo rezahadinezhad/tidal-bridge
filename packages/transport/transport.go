@@ -75,6 +75,29 @@ func Upload(ctx context.Context, endpoint, token, hash, path string, size int64)
 	}
 	return nil
 }
+
+// UploadPack sends a pack of blobs in one request (see store_pack in the
+// worker); encoding is "zlib" or "identity".
+func UploadPack(ctx context.Context, endpoint, token string, body []byte, encoding string) error {
+	req, e := http.NewRequestWithContext(ctx, "POST", endpoint+"/v1/blobs/pack", bytes.NewReader(body))
+	if e != nil {
+		return e
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Pack-Encoding", encoding)
+	client := http.Client{Timeout: 15 * time.Minute}
+	resp, e := client.Do(req)
+	if e != nil {
+		return e
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("blob pack upload: %s", b)
+	}
+	return nil
+}
+
 func Download(ctx context.Context, endpoint, token, path, destination string) error {
 	req, e := http.NewRequestWithContext(ctx, "GET", endpoint+path, nil)
 	if e != nil {

@@ -1,4 +1,5 @@
-param([switch]$Test, [string]$DataDir = (Join-Path $env:USERPROFILE '.tidalbridge'))
+# -Force installs even while jobs run; they are interrupted (marked INTERRUPTED).
+param([switch]$Test, [switch]$Force, [string]$DataDir = (Join-Path $env:USERPROFILE '.tidalbridge'))
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $goPath = Join-Path $projectRoot '.tools\go\bin\go.exe'
@@ -47,7 +48,7 @@ try {
     foreach ($hostProcess in $hosts) {
         $hostDataDir = if ($hostProcess.CommandLine -match '--data-dir\s+"([^"]+)"') { $Matches[1] } else { $DataDir }
         $hostStatus = & (Join-Path $binDir 'tidalbridge-next.exe') --data-dir $hostDataDir status | ConvertFrom-Json
-        if ($LASTEXITCODE -ne 0 -or $hostStatus.active_jobs -ne 0 -or $hostStatus.queue_depth -ne 0) { throw 'Host has active or queued work. Leave it running; rebuild after it is idle.' }
+        if (-not $Force -and ($LASTEXITCODE -ne 0 -or $hostStatus.active_jobs -ne 0 -or $hostStatus.queue_depth -ne 0)) { throw 'Host has active or queued work. Leave it running; rebuild after it is idle (or pass -Force).' }
     }
     $serviceInstalled = $false
     & (Join-Path $env:SystemRoot 'System32\schtasks.exe') /Query /TN 'Tidal Bridge Host' *> $null

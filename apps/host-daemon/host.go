@@ -268,7 +268,17 @@ func (h *Host) Status() any {
 	defer h.mu.RUnlock()
 	nodes := h.workersLocked()
 	jobs := []protocol.Job{}
+	year, month, day := time.Now().Date()
+	midnight := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
+	preruns := 0
 	for _, j := range h.jobs {
+		if j.Spec.Speculative {
+			// Pre-runs are internal: a command that reuses one shows as its own job.
+			if j.Created.After(midnight) && j.ExitCode != nil {
+				preruns++
+			}
+			continue
+		}
 		copy := *j
 		copy.Stdout = ""
 		copy.Stderr = ""
@@ -276,8 +286,6 @@ func (h *Host) Status() any {
 	}
 	sort.Slice(jobs, func(i, j int) bool { return jobs[i].Created.After(jobs[j].Created) })
 	// Relief today: what the phones ran and what that spared the laptop.
-	year, month, day := time.Now().Date()
-	midnight := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
 	phoneJobs, phoneSeconds, cpuSeconds, peakMB, measured := 0, 0.0, 0.0, 0.0, 0
 	forced, forcedCPU := 0, 0.0
 	for _, j := range jobs {
@@ -318,7 +326,7 @@ func (h *Host) Status() any {
 		jobs[i].Spec.LocalArgv = nil
 		jobs[i].Spared = h.sparedLocked(&jobs[i])
 	}
-	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU, "reused_today": reusedToday, "reused_seconds_today": reusedSeconds},
+	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU, "reused_today": reusedToday, "reused_seconds_today": reusedSeconds, "preruns_today": preruns},
 		"capacity": map[string]any{"max": h.cfg.WorkerConcurrency, "fixed": h.cfg.FixedCapacity}, "product": "Tidal Bridge", "version": protocol.WorkerVersion, "protocol_version": protocol.Version, "mode": h.cfg.Mode, "paused": h.cfg.Paused, "host": h.monitor.Snapshot(), "workers": nodes, "jobs": jobs, "queue_depth": len(h.pending), "active_jobs": h.totalActive, "local_active": h.localActive}
 }
 
@@ -1015,7 +1023,9 @@ func (h *Host) execute(ctx context.Context, id string, node *protocol.WorkerNode
 	j.OutputBytes = out.count + errout.count
 	j.Truncated = out.truncated || errout.truncated
 	if j.State == "CANCELLED" {
-		j.Error = "Cancelled by user."
+		if !strings.HasPrefix(j.Error, "Pre-run stopped:") {
+			j.Error = "Cancelled by user."
+		}
 	} else if endedErr != nil {
 		j.State = "FAILED"
 		j.Error = "Job deadline/interruption: " + endedErr.Error()
