@@ -82,6 +82,10 @@ type Host struct {
 	reuseDay     string
 	reuseCount   int
 	reuseSeconds float64
+	// Pre-runs and joinable runs (prerun.go), guarded by prerunMu.
+	prerunMu sync.Mutex
+	watches  map[string]*projectWatch
+	flights  map[string]*flight
 
 	linkMu      sync.Mutex
 	knownMu     sync.Mutex
@@ -172,6 +176,7 @@ func New(dir string) (*Host, error) {
 	h.loadSuites()
 	h.loadOutside()
 	h.loadReuse()
+	h.watches, h.flights = map[string]*projectWatch{}, map[string]*flight{}
 	return h, nil
 }
 func (h *Host) Config() config.Config { h.mu.RLock(); defer h.mu.RUnlock(); return h.cfg }
@@ -571,11 +576,13 @@ func (h *Host) Submit(spec protocol.JobSpec) (*protocol.Job, error) {
 		}
 		spec.Workspace = abs
 	}
-	// A reusable result is served at once, never queued behind other work.
+	// A reusable result is served at once, never queued behind other work;
+	// a command identical to one running joins it.
 	var hit *reuseEntry
+	var m *protocol.Manifest
 	if h.reusable(spec) {
-		if m, e := h.manifestWithin(context.Background(), spec, 0); e == nil {
-			hit = h.reusedResult(spec, m, true)
+		if found, e := h.manifestWithin(context.Background(), spec, 0); e == nil {
+			m, hit = found, h.reusedResult(spec, found, true)
 		}
 	}
 	h.mu.Lock()
@@ -585,25 +592,49 @@ func (h *Host) Submit(spec protocol.JobSpec) (*protocol.Job, error) {
 	}
 	j := &protocol.Job{ID: config.Random(), Spec: spec, State: "QUEUED", Created: time.Now(), Attempts: []protocol.Attempt{}}
 	h.jobs[j.ID] = j
-	if hit == nil {
-		h.pending = append(h.pending, j.ID)
-	}
 	h.seen[j.ID] = time.Now()
+	if hit == nil && m != nil && !spec.Speculative {
+		j.State, j.Decision = "RUNNING", protocol.Decision{Target: "JOINED", Explanation: "Joined the identical run already in progress."}
+	}
+	joining := j.State == "RUNNING"
 	h.save(j)
 	h.log.Info("job_submitted", "job", j.ID, "argv", spec.Argv, "workspace", spec.Workspace)
-	copy := *j
 	h.mu.Unlock()
-	if hit != nil {
+	switch {
+	case hit != nil:
 		h.serveReused(j.ID, hit)
+	case joining && h.join(j.ID, h.reuseKeyFor(spec, m)):
+	default:
+		h.mu.Lock()
+		if j.State == "RUNNING" {
+			j.State, j.Decision = "QUEUED", protocol.Decision{}
+		}
+		h.pending = append(h.pending, j.ID)
+		h.mu.Unlock()
 	}
+	h.mu.RLock()
+	copy := *j
+	h.mu.RUnlock()
 	h.signal()
 	return &copy, nil
 }
 func (h *Host) input(spec protocol.JobSpec, manifest *protocol.Manifest) scheduler.Input {
+	// Pre-runs give way to real work: they count as free capacity.
+	var preruns map[string]int
+	if !spec.Speculative {
+		preruns = h.speculativeOn()
+	}
 	h.mu.RLock()
 	in := scheduler.Input{Spec: spec, Config: h.cfg, Host: h.monitor.Snapshot().Resources, History: append([]protocol.HistorySample(nil), h.history...), MissingBytes: map[string]int64{}, EnvironmentWarm: map[string]bool{}, LocalBusy: h.localActive >= h.cfg.LocalConcurrency}
 	for _, n := range h.nodes {
-		in.Nodes = append(in.Nodes, *n)
+		node := *n
+		if free := preruns[n.ID]; free > 0 {
+			node.ActiveJobs = max(0, node.ActiveJobs-free)
+			if node.ActiveJobs == 0 && node.State == "BUSY" {
+				node.State = "READY"
+			}
+		}
+		in.Nodes = append(in.Nodes, node)
 	}
 	in.Quarantine = h.quarantineLocked(verifySignature(spec))
 	h.mu.RUnlock()
@@ -718,6 +749,19 @@ func (h *Host) Explain(ctx context.Context, spec protocol.JobSpec) (protocol.Dec
 			d.Confirm = h.needsConfirmation(spec)
 		}
 		return d, nil
+	}
+	if h.reusable(spec) && m != nil {
+		key := h.reuseKeyFor(spec, m)
+		h.prerunMu.Lock()
+		node := ""
+		if id := h.flightFor(key); id != "" {
+			node = h.flights[id].node
+		}
+		h.prerunMu.Unlock()
+		if node != "" {
+			// The same command on the same files is running (often a pre-run).
+			return protocol.Decision{Target: node, Explanation: "Joining the identical run already in progress.", Confirm: h.needsConfirmation(spec)}, nil
+		}
 	}
 	in := h.input(spec, m)
 	d := scheduler.Route(in)
@@ -840,6 +884,12 @@ func (h *Host) dispatch(ctx context.Context) {
 			h.save(j)
 			h.mu.Unlock()
 			h.removePending(id)
+			if node != nil && !spec.Service {
+				h.startFlight(id, spec, manifest, node.ID)
+				if !spec.Speculative {
+					go h.preemptOn(node.ID) // real work first
+				}
+			}
 			h.running.Add(1)
 			go h.execute(jobCtx, id, node, manifest)
 		}
@@ -998,10 +1048,18 @@ func (h *Host) execute(ctx context.Context, id string, node *protocol.WorkerNode
 	if node != nil {
 		fingerprint = node.Profile.Calibration.Fingerprint
 	}
-	if node != nil && j.ExitCode != nil && runErr == nil && endedErr == nil && j.Recheck == "" {
-		// Outside the lock: it reads the job's logs.
-		go h.rememberResult(id, spec, attempt, *j.ExitCode, fingerprint, now)
+	storable := node != nil && j.ExitCode != nil && runErr == nil && endedErr == nil && j.Recheck == ""
+	exitCode := 0
+	if j.ExitCode != nil {
+		exitCode = *j.ExitCode
 	}
+	go func() { // outside the lock: these read the job's logs and serve joiners
+		if storable {
+			h.rememberResult(id, spec, attempt, exitCode, fingerprint, now)
+			h.noteCommand(spec, attempt.ServicesUsed != nil && *attempt.ServicesUsed)
+		}
+		h.landFlight(id)
+	}()
 	if spec.Service {
 		// A service's lifetime says nothing about job durations.
 		h.log.Info("job_finished", "job", id, "target", attempt.Target, "state", j.State, "duration_ms", attempt.DurationMS, "error", j.Error)
