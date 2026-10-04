@@ -352,6 +352,8 @@ type remoteState struct {
 	WorkspacePath string   `json:"workspace_path"`
 	// Changes made by a write-back job, listed before it reports its exit.
 	Changes *protocol.WorkerChanges `json:"changes"`
+	// ServicesUsed: whether the job reached a laptop service tunnel.
+	ServicesUsed *bool `json:"services_used"`
 }
 
 // pathRewriter replaces the worker's copy of the workspace with the host
@@ -410,6 +412,7 @@ func (h *Host) runRemote(ctx context.Context, id string, spec protocol.JobSpec, 
 			return 0, a, err, true
 		}
 		a.BytesSent, a.SyncMS, a.CacheWarm = sent, syncMS, sent == 0
+		a.Tree = treeIdentity(m)
 		remoteSpec["workspace_id"] = m.ID
 		remoteSpec["workspace_key"] = key
 	}
@@ -565,6 +568,9 @@ func (h *Host) runRemote(ctx context.Context, id string, spec protocol.JobSpec, 
 			if state.State != "RUNNING" && state.State != "QUEUED" {
 				a.WorkerPeakRAMMB = state.PeakRAMMB
 				a.WorkerCPUSeconds = state.CPUSecs
+				if len(spec.ReversePorts) > 0 {
+					a.ServicesUsed = state.ServicesUsed
+				}
 				if state.Error != "" {
 					return 0, a, fmt.Errorf("worker: %s", state.Error), false
 				}
@@ -658,6 +664,13 @@ func (h *Host) workspaceIndex(ctx context.Context, root string, includeEnv bool,
 		}()
 	}
 	h.indexMu.Unlock()
+	// A ready index wins over an expired wait: with wait 0, a select would
+	// otherwise pick either case at random.
+	select {
+	case <-slot.ready:
+		return slot.idx, slot.err
+	default:
+	}
 	var timeout <-chan time.Time
 	if wait >= 0 {
 		timer := time.NewTimer(wait)

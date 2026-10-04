@@ -301,6 +301,62 @@ def marker_name(runtime: str, kind: str) -> str:
     return f"{runtime}.json" if kind == "node" else f"{runtime}-python.json"
 
 
+def tunnel_in_use(ports: set, tables: tuple = ("/proc/net/tcp", "/proc/net/tcp6")) -> bool | None:
+    """Whether any TCP socket other than a listener has one of these ports at
+    either end; None when the kernel tables cannot be read."""
+    for table in tables:
+        try:
+            with open(table) as stream:
+                lines = stream.read().splitlines()[1:]
+        except OSError:
+            return None
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 4 or fields[3] == "0A":  # 0A: listening
+                continue
+            try:
+                if int(fields[1].rsplit(":", 1)[1], 16) in ports or int(fields[2].rsplit(":", 1)[1], 16) in ports:
+                    return True
+            except (IndexError, ValueError):
+                continue
+    return False
+
+
+class ServiceWatch:
+    """Notices whether a job reached a laptop service through a tunnel (a
+    database or an API on the laptop): the host never reuses such a result,
+    since it depends on more than the files. A closed connection stays in the
+    kernel table for a minute (TIME_WAIT), so a sample every few seconds
+    misses none. `used` is None when the table could not be read."""
+
+    def __init__(self, ports: set, every: float = 3.0):
+        self.ports, self.every, self.used = ports, every, False
+        self.stopped = threading.Event()
+        self.thread = threading.Thread(target=self.watch, daemon=True)
+
+    def sample(self) -> None:
+        seen = tunnel_in_use(self.ports)
+        if self.used is not True:
+            self.used = True if seen else None if seen is None or self.used is None else False
+
+    def watch(self) -> None:
+        while not self.stopped.wait(self.every):
+            self.sample()
+
+    def __enter__(self):
+        if self.ports:
+            self.sample()
+            self.thread.start()
+        return self
+
+    def __exit__(self, *_):
+        if self.ports:
+            self.stopped.set()
+            self.thread.join(timeout=5)
+            self.sample()
+        return False
+
+
 TSC_SELF_MANAGED = {"-b", "--build", "-w", "--watch", "-i", "--incremental", "--tsbuildinfofile", "--composite"}
 
 
@@ -1189,7 +1245,11 @@ class Worker:
                         # worker settings apply.
                         env.pop("VITEST_MAX_WORKERS", None)
             job["engine"] = engine
-            code = self.run_process(jid, argv, cwd, env, remaining, runtime=engine)
+            ports = {p for p in spec.get("reverse_ports") or [] if isinstance(p, int) and 0 < p < 65536}
+            with ServiceWatch(ports) as services:
+                code = self.run_process(jid, argv, cwd, env, remaining, runtime=engine)
+            if ports:
+                job["services_used"] = services.used
             if policy.get("write_back") and key and jid not in self.cancelled:
                 # Listed before the exit code: the host reads them together.
                 job["changes"] = self.tree_changes(key)
@@ -1260,10 +1320,19 @@ class Worker:
         dropped whole past 512 MB and refills on the next runs."""
         warm = self.root / "warm"
         for state in (warm / "tsc").glob("*.tsbuildinfo"):
-            if now - state.stat().st_mtime > IDLE_SECONDS:
-                state.unlink(missing_ok=True)
+            try:  # another prune or a running check may remove it meanwhile
+                if now - state.stat().st_mtime > IDLE_SECONDS:
+                    state.unlink(missing_ok=True)
+            except OSError:
+                continue
         cache = warm / "node"
-        if cache.is_dir() and sum(f.stat().st_size for f in cache.rglob("*") if f.is_file()) > 512 << 20:
+        size = 0
+        for item in cache.rglob("*") if cache.is_dir() else ():
+            try:
+                size += item.stat().st_size if item.is_file() else 0
+            except OSError:
+                continue
+        if size > 512 << 20:
             shutil.rmtree(cache, ignore_errors=True)
 
     def remove_tree(self, key: str) -> bool:

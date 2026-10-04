@@ -74,6 +74,14 @@ type Host struct {
 	suites map[string]*suiteRecord
 	// outside: folders projects read from outside themselves (outside.json).
 	outside map[string][]string
+	// reuse: results of tests and checks kept for reuse (results.go);
+	// reuseCount/reuseSeconds count today's reuses (guarded by mu).
+	reuseMu      sync.Mutex
+	reuse        map[string]*reuseEntry
+	reuseScopes  map[string]int
+	reuseDay     string
+	reuseCount   int
+	reuseSeconds float64
 
 	linkMu      sync.Mutex
 	knownMu     sync.Mutex
@@ -163,6 +171,7 @@ func New(dir string) (*Host, error) {
 	h.loadCosts()
 	h.loadSuites()
 	h.loadOutside()
+	h.loadReuse()
 	return h, nil
 }
 func (h *Host) Config() config.Config { h.mu.RLock(); defer h.mu.RUnlock(); return h.cfg }
@@ -289,6 +298,10 @@ func (h *Host) Status() any {
 	if h.peakDay == time.Now().Format(time.DateOnly) {
 		peakMB = max(peakMB, h.peakHeldMB)
 	}
+	reusedToday, reusedSeconds := 0, 0.0
+	if h.reuseDay == time.Now().Format(time.DateOnly) {
+		reusedToday, reusedSeconds = h.reuseCount, h.reuseSeconds
+	}
 	if len(jobs) > 40 {
 		jobs = jobs[:40]
 	}
@@ -300,7 +313,7 @@ func (h *Host) Status() any {
 		jobs[i].Spec.LocalArgv = nil
 		jobs[i].Spared = h.sparedLocked(&jobs[i])
 	}
-	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU},
+	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU, "reused_today": reusedToday, "reused_seconds_today": reusedSeconds},
 		"capacity": map[string]any{"max": h.cfg.WorkerConcurrency, "fixed": h.cfg.FixedCapacity}, "product": "Tidal Bridge", "version": protocol.WorkerVersion, "protocol_version": protocol.Version, "mode": h.cfg.Mode, "paused": h.cfg.Paused, "host": h.monitor.Snapshot(), "workers": nodes, "jobs": jobs, "queue_depth": len(h.pending), "active_jobs": h.totalActive, "local_active": h.localActive}
 }
 
@@ -558,19 +571,32 @@ func (h *Host) Submit(spec protocol.JobSpec) (*protocol.Job, error) {
 		}
 		spec.Workspace = abs
 	}
+	// A reusable result is served at once, never queued behind other work.
+	var hit *reuseEntry
+	if h.reusable(spec) {
+		if m, e := h.manifestWithin(context.Background(), spec, 0); e == nil {
+			hit = h.reusedResult(spec, m, true)
+		}
+	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	if len(h.pending) >= h.cfg.QueueSize {
+	if hit == nil && len(h.pending) >= h.cfg.QueueSize {
+		h.mu.Unlock()
 		return nil, fmt.Errorf("scheduler queue is full; retry when capacity is available")
 	}
 	j := &protocol.Job{ID: config.Random(), Spec: spec, State: "QUEUED", Created: time.Now(), Attempts: []protocol.Attempt{}}
 	h.jobs[j.ID] = j
-	h.pending = append(h.pending, j.ID)
+	if hit == nil {
+		h.pending = append(h.pending, j.ID)
+	}
 	h.seen[j.ID] = time.Now()
 	h.save(j)
 	h.log.Info("job_submitted", "job", j.ID, "argv", spec.Argv, "workspace", spec.Workspace)
-	h.signal()
 	copy := *j
+	h.mu.Unlock()
+	if hit != nil {
+		h.serveReused(j.ID, hit)
+	}
+	h.signal()
 	return &copy, nil
 }
 func (h *Host) input(spec protocol.JobSpec, manifest *protocol.Manifest) scheduler.Input {
@@ -685,6 +711,14 @@ func (h *Host) Explain(ctx context.Context, spec protocol.JobSpec) (protocol.Dec
 	if e != nil {
 		return protocol.Decision{}, e
 	}
+	if hit := h.reusedResult(spec, m, false); hit != nil {
+		// The job is served from the stored result whatever the phones' state.
+		d := protocol.Decision{Target: hit.Target, Explanation: fmt.Sprintf("Reusing the result from %s: nothing it reads changed.", hit.Finished.Local().Format("15:04"))}
+		if hit.ExitCode != 0 {
+			d.Confirm = h.needsConfirmation(spec)
+		}
+		return d, nil
+	}
 	in := h.input(spec, m)
 	d := scheduler.Route(in)
 	if d.Target != "LOCAL" && d.Target != "REJECT" && d.Target != "WAIT" {
@@ -719,10 +753,20 @@ func (h *Host) dispatch(ctx context.Context) {
 			spec := j.Spec
 			full := h.totalActive >= h.cfg.MaxConcurrency && !spec.Service
 			h.mu.RUnlock()
-			if full {
+			if full && !h.reusable(spec) {
 				break
 			}
 			manifest, e := h.manifestWithin(ctx, spec, 0)
+			if e == nil {
+				if hit := h.reusedResult(spec, manifest, true); hit != nil {
+					h.removePending(id)
+					h.serveReused(id, hit)
+					continue
+				}
+			}
+			if full {
+				break
+			}
 			if errors.Is(e, errIndexing) {
 				h.mu.Lock()
 				j.State = "WAIT"
@@ -953,6 +997,10 @@ func (h *Host) execute(ctx context.Context, id string, node *protocol.WorkerNode
 	fingerprint := ""
 	if node != nil {
 		fingerprint = node.Profile.Calibration.Fingerprint
+	}
+	if node != nil && j.ExitCode != nil && runErr == nil && endedErr == nil && j.Recheck == "" {
+		// Outside the lock: it reads the job's logs.
+		go h.rememberResult(id, spec, attempt, *j.ExitCode, fingerprint, now)
 	}
 	if spec.Service {
 		// A service's lifetime says nothing about job durations.
