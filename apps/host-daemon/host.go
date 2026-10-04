@@ -656,7 +656,7 @@ func (h *Host) input(spec protocol.JobSpec, manifest *protocol.Manifest) schedul
 	if manifest == nil {
 		return in
 	}
-	key := treeKey(spec.Workspace)
+	key := h.treeKeyFor(spec.Workspace)
 	for _, n := range in.Nodes {
 		in.MissingBytes[n.ID] = manifest.TotalBytes
 		if n.State != "READY" && n.State != "BUSY" {
@@ -709,7 +709,7 @@ func runtimeOf(spec protocol.JobSpec) string {
 // once, without making the command that noticed the cold environment wait:
 // that command runs locally, later ones find the environment warm.
 func (h *Host) prepareInBackground(node protocol.WorkerNode, spec protocol.JobSpec) {
-	key := node.ID + "|" + treeKey(spec.Workspace) + "|" + spec.WorkingDirectory + "|" + runtimeOf(spec) + "|" + ecosystemOf(spec)
+	key := node.ID + "|" + h.treeKeyFor(spec.Workspace) + "|" + spec.WorkingDirectory + "|" + runtimeOf(spec) + "|" + ecosystemOf(spec)
 	h.prepareMu.Lock()
 	if started, ok := h.preparing[key]; ok && time.Since(started) < 30*time.Minute {
 		h.prepareMu.Unlock()

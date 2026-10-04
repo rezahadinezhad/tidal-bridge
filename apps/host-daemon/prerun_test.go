@@ -130,6 +130,36 @@ func TestIdenticalCommandsJoinTheRunInProgress(t *testing.T) {
 	}
 }
 
+func TestAFailedRunIsNotRepeatedOnTheSameFiles(t *testing.T) {
+	h, spec, m := prerunFixture(t)
+	running, _ := h.Submit(spec)
+	h.startFlight(running.ID, spec, m, "worker-a")
+	h.noteCommand(spec, false)
+	ran(t, h, spec, m, 1, nil, time.Now())
+	h.landFlight(running.ID) // nobody joined it
+	time.Sleep(100 * time.Millisecond)
+	h.prerun(watchKey(spec))
+	if len(preruns(h)) != 0 {
+		t.Fatal("a pre-run of a command that just failed on these files would only fail again")
+	}
+	if hit := h.reusedResult(spec, m, true); hit == nil || hit.ExitCode != 1 {
+		t.Fatal("the failure answers the agent's next identical run once")
+	}
+}
+
+func TestDependencyQuestionsGoToTheTreeJobsUse(t *testing.T) {
+	h, spec, m := prerunFixture(t)
+	if _, key, _ := h.treeFor(spec.Workspace, m); h.treeKeyFor(spec.Workspace) != key {
+		t.Fatal("a project's own tree")
+	}
+	h.mu.Lock()
+	h.outside[outsideKey(spec.Workspace)] = []string{"../planning"}
+	h.mu.Unlock()
+	if _, key, _ := h.treeFor(spec.Workspace, m); h.treeKeyFor(spec.Workspace) != key || key == treeKey(spec.Workspace) {
+		t.Fatal("a project that reads files beside it is asked about in its nested tree, not the flat one left behind", key)
+	}
+}
+
 func TestRealWorkPreemptsPreRunsAndEditsCancelThem(t *testing.T) {
 	h, spec, m := prerunFixture(t)
 	speculative := spec

@@ -158,5 +158,20 @@ func (h *Host) treeFor(workspace string, m *protocol.Manifest) (*protocol.Manife
 		})
 	}
 	out.ID = "o" + hex.EncodeToString(digest.Sum(nil))[:40]
-	return &out, "wo-" + strings.TrimPrefix(key, "ws-"), unsafeName.ReplaceAllString(filepath.Base(workspace), "_")
+	return &out, nestedTreeKey(key), unsafeName.ReplaceAllString(filepath.Base(workspace), "_")
+}
+
+func nestedTreeKey(key string) string { return "wo-" + strings.TrimPrefix(key, "ws-") }
+
+// treeKeyFor is the key of the tree treeFor copies a workspace to. Questions
+// about a phone's copy (are its dependencies installed?) go to this tree; the
+// project's flat tree from before it read outside files is left behind.
+func (h *Host) treeKeyFor(workspace string) string {
+	h.mu.RLock()
+	nested := len(h.outside[outsideKey(workspace)]) > 0
+	h.mu.RUnlock()
+	if nested {
+		return nestedTreeKey(treeKey(workspace))
+	}
+	return treeKey(workspace)
 }

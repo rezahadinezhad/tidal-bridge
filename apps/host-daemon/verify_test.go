@@ -61,6 +61,28 @@ func TestConfirmationsBuildTrustOrQuarantine(t *testing.T) {
 	}
 }
 
+func TestCheckingOneTestNameVouchesForTheRunner(t *testing.T) {
+	dir := t.TempDir()
+	spec := func(argv ...string) protocol.JobSpec {
+		return protocol.JobSpec{Argv: argv, Workspace: dir, Profile: "automatic:vitest", Runtime: "debian"}
+	}
+	named := trustKey(spec("vitest", "run", "src/new-sheet.test.tsx", "-t", "a class runs"))
+	for _, same := range []protocol.JobSpec{
+		spec("vitest", "run", "src/header", "-t", "New opens"),
+		spec("vitest", "run", "-t", "the census"),
+	} {
+		if trustKey(same) != named {
+			t.Fatal("test names are selections, like file names", same.Argv)
+		}
+	}
+	if trustKey(spec("vitest", "run", "--testNamePattern=a")) != trustKey(spec("vitest", "run", "--testNamePattern=b")) {
+		t.Fatal("a joined test name is a selection too")
+	}
+	if trustKey(spec("vitest", "run", "src/a.test.ts")) == named || trustKey(spec("vitest", "run", "-t", "x", "--maxWorkers=2")) == named {
+		t.Fatal("options still tell commands apart")
+	}
+}
+
 func TestCriticalHeatEvacuatesRunningJobs(t *testing.T) {
 	h, err := New(t.TempDir())
 	if err != nil {
