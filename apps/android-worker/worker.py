@@ -301,6 +301,29 @@ def marker_name(runtime: str, kind: str) -> str:
     return f"{runtime}.json" if kind == "node" else f"{runtime}-python.json"
 
 
+TSC_SELF_MANAGED = {"-b", "--build", "-w", "--watch", "-i", "--incremental", "--tsbuildinfofile", "--composite"}
+
+
+def tsc_incremental(args: list[str], script: str, cwd: pathlib.Path, warm: pathlib.Path) -> list[str]:
+    """`tsc --noEmit` keeps its incremental state on the phone, outside the
+    project copy (a sync would delete it there), so a repeat check redoes only
+    what changed. TypeScript validates that state itself and reports the same
+    diagnostics as a full check. Builds, watch mode and commands that already
+    choose their own incremental state are left alone."""
+    names = {a.split("=", 1)[0].lower() for a in args}
+    if "--noemit" not in names or names & TSC_SELF_MANAGED:
+        return args
+    try:
+        package = pathlib.Path(script).resolve().parents[1] / "package.json"
+        if int(json.loads(package.read_text())["version"].split(".")[0]) < 4:
+            return args  # --incremental with --noEmit needs TypeScript 4
+    except (OSError, ValueError, KeyError, IndexError):
+        return args
+    digest = hashlib.sha256("\0".join([str(cwd), *args]).encode()).hexdigest()[:20]
+    (warm / "tsc").mkdir(parents=True, exist_ok=True)
+    return [*args, "--incremental", "--tsBuildInfoFile", str(warm / "tsc" / f"{digest}.tsbuildinfo")]
+
+
 class NativeNode:
     """Runs the userland's Node without proot. Its glibc loader path is
     rewritten to a short link outside the userland, so Node and every child
@@ -315,6 +338,7 @@ class NativeNode:
         self.rootfs = userland / "rootfs"
         self.lib = self.rootfs / "usr/lib/aarch64-linux-gnu"
         self.node = userland / "native/node"
+        self.warm: pathlib.Path | None = None  # state the tools keep between runs
         self.lock = threading.Lock()
         self.ok: bool | None = None
         self.checked = 0.0
@@ -391,13 +415,22 @@ class NativeNode:
             env.update(npm_lifecycle_event=name, npm_lifecycle_script=body, npm_package_json=str(cwd / "package.json"), INIT_CWD=str(cwd))
             argv, extra = words, rest
         script = self.resolve(argv[0], cwd)
-        return [str(self.node), script, *argv[1:], *extra] if script else None
+        if not script:
+            return None
+        args = [*argv[1:], *extra]
+        if argv[0] == "tsc" and self.warm:
+            args = tsc_incremental(args, script, cwd, self.warm)
+        return [str(self.node), script, *args]
 
     def env(self, job_env: dict) -> dict:
         result = {k: v for k, v in job_env.items() if k not in ("PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PREFIX", "TIDALBRIDGE_GUEST_PATH")}
         tree_bins = [p for p in job_env.get("TIDALBRIDGE_GUEST_PATH", "").split(":") if p.startswith(str(self.userland))]
         result.update(PATH=":".join([str(self.node.parent), *tree_bins, "/system/bin", "/system/xbin"]), LD_LIBRARY_PATH=str(self.lib),
                       HOME=str(self.rootfs / "root"), TMPDIR=str(self.userland / "tmp"), LANG="C.UTF-8")
+        if self.warm:
+            # Node keeps compiled code between runs (checked against each
+            # file's source; Node 22 and later), so tools start warm.
+            result.setdefault("NODE_COMPILE_CACHE", str(self.warm / "node"))
         return result
 
 
@@ -447,6 +480,8 @@ class Worker:
                 self.runtimes.setdefault(name, "1.0.0")
         self.debian = Debian(None if mock else os.environ.get("PREFIX"), userland)
         self.native = NativeNode(userland) if userland and not mock and not guest else None
+        if self.native:
+            self.native.warm = self.root / "warm"
         if self.debian_only:
             self.debian.versions()  # before serving, so capabilities are complete
         self.page = os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 4096
@@ -1215,9 +1250,21 @@ class Worker:
                 if (now - used > IDLE_SECONDS or low and now - used > 3600) and self.remove_tree(key):
                     removed.append(key)
             self.prune_cache(now, {j["spec"].get("workspace_id") for j in active})
+            self.prune_warm(now)
         except OSError:
             pass
         return removed
+
+    def prune_warm(self, now: float) -> None:
+        """Incremental state unused for two weeks goes; Node's code cache is
+        dropped whole past 512 MB and refills on the next runs."""
+        warm = self.root / "warm"
+        for state in (warm / "tsc").glob("*.tsbuildinfo"):
+            if now - state.stat().st_mtime > IDLE_SECONDS:
+                state.unlink(missing_ok=True)
+        cache = warm / "node"
+        if cache.is_dir() and sum(f.stat().st_size for f in cache.rglob("*") if f.is_file()) > 512 << 20:
+            shutil.rmtree(cache, ignore_errors=True)
 
     def remove_tree(self, key: str) -> bool:
         """Move a project copy aside under its lock, then delete it: a sync
