@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,9 +83,8 @@ type Host struct {
 	reuseDay     string
 	reuseCount   int
 	reuseSeconds float64
-	// Pre-runs and joinable runs (prerun.go), guarded by prerunMu.
-	prerunMu sync.Mutex
-	watches  map[string]*projectWatch
+	// Runs that identical commands join (flights.go), guarded by flightMu.
+	flightMu sync.Mutex
 	flights  map[string]*flight
 
 	linkMu      sync.Mutex
@@ -136,6 +136,7 @@ func New(dir string) (*Host, error) {
 	h.audit = f
 	files, _ := filepath.Glob(filepath.Join(dir, "jobs", "*.json"))
 	sort.Strings(files)
+	var prerun []protocol.Job
 	for _, path := range files {
 		b, e := os.ReadFile(path)
 		if e != nil {
@@ -143,6 +144,20 @@ func New(dir string) (*Host, error) {
 		}
 		var j protocol.Job
 		if json.Unmarshal(b, &j) != nil {
+			continue
+		}
+		var legacy struct {
+			Spec struct {
+				Speculative bool `json:"speculative"`
+			} `json:"spec"`
+		}
+		if json.Unmarshal(b, &legacy) == nil && legacy.Spec.Speculative && regexp.MustCompile(`^[a-f0-9]{48}$`).MatchString(j.ID) {
+			// A pre-run (no longer made): its record and logs go, and so do
+			// its phone timings, which would count its failures against the
+			// phone.
+			prerun = append(prerun, j)
+			os.Remove(path)
+			os.RemoveAll(filepath.Join(dir, "results", j.ID))
 			continue
 		}
 		if j.State == "RUNNING" || j.State == "QUEUED" || j.State == "WAIT" {
@@ -171,12 +186,20 @@ func New(dir string) (*Host, error) {
 	if len(h.history) > 512 {
 		h.history = h.history[len(h.history)-512:]
 	}
+	if kept := slices.DeleteFunc(slices.Clone(h.history), func(s protocol.HistorySample) bool {
+		return slices.ContainsFunc(prerun, func(j protocol.Job) bool {
+			return j.Finished != nil && len(j.Attempts) > 0 && s.Target == j.Attempts[len(j.Attempts)-1].Target && s.Timestamp.Equal(*j.Finished)
+		})
+	}); len(kept) < len(h.history) {
+		h.history = kept
+		config.SaveJSON(filepath.Join(dir, "history.json"), h.history)
+	}
 	h.loadVerification()
 	h.loadCosts()
 	h.loadSuites()
 	h.loadOutside()
 	h.loadReuse()
-	h.watches, h.flights = map[string]*projectWatch{}, map[string]*flight{}
+	h.flights = map[string]*flight{}
 	return h, nil
 }
 func (h *Host) Config() config.Config { h.mu.RLock(); defer h.mu.RUnlock(); return h.cfg }
@@ -270,15 +293,7 @@ func (h *Host) Status() any {
 	jobs := []protocol.Job{}
 	year, month, day := time.Now().Date()
 	midnight := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
-	preruns := 0
 	for _, j := range h.jobs {
-		if j.Spec.Speculative {
-			// Pre-runs are internal: a command that reuses one shows as its own job.
-			if j.Created.After(midnight) && j.ExitCode != nil {
-				preruns++
-			}
-			continue
-		}
 		copy := *j
 		copy.Stdout = ""
 		copy.Stderr = ""
@@ -326,7 +341,7 @@ func (h *Host) Status() any {
 		jobs[i].Spec.LocalArgv = nil
 		jobs[i].Spared = h.sparedLocked(&jobs[i])
 	}
-	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU, "reused_today": reusedToday, "reused_seconds_today": reusedSeconds, "preruns_today": preruns},
+	return map[string]any{"automation": adapter.LoadSettings(h.Dir), "relief": map[string]any{"phone_jobs_today": phoneJobs, "phone_seconds_today": phoneSeconds, "cpu_seconds_today": cpuSeconds, "measured_today": measured, "peak_ram_mb_today": peakMB, "forced_today": forced, "forced_cpu_seconds_today": forcedCPU, "reused_today": reusedToday, "reused_seconds_today": reusedSeconds},
 		"capacity": map[string]any{"max": h.cfg.WorkerConcurrency, "fixed": h.cfg.FixedCapacity}, "product": "Tidal Bridge", "version": protocol.WorkerVersion, "protocol_version": protocol.Version, "mode": h.cfg.Mode, "paused": h.cfg.Paused, "host": h.monitor.Snapshot(), "workers": nodes, "jobs": jobs, "queue_depth": len(h.pending), "active_jobs": h.totalActive, "local_active": h.localActive}
 }
 
@@ -601,7 +616,7 @@ func (h *Host) Submit(spec protocol.JobSpec) (*protocol.Job, error) {
 	j := &protocol.Job{ID: config.Random(), Spec: spec, State: "QUEUED", Created: time.Now(), Attempts: []protocol.Attempt{}}
 	h.jobs[j.ID] = j
 	h.seen[j.ID] = time.Now()
-	if hit == nil && m != nil && !spec.Speculative {
+	if hit == nil && m != nil {
 		j.State, j.Decision = "RUNNING", protocol.Decision{Target: "JOINED", Explanation: "Joined the identical run already in progress."}
 	}
 	joining := j.State == "RUNNING"
@@ -627,22 +642,10 @@ func (h *Host) Submit(spec protocol.JobSpec) (*protocol.Job, error) {
 	return &copy, nil
 }
 func (h *Host) input(spec protocol.JobSpec, manifest *protocol.Manifest) scheduler.Input {
-	// Pre-runs give way to real work: they count as free capacity.
-	var preruns map[string]int
-	if !spec.Speculative {
-		preruns = h.speculativeOn()
-	}
 	h.mu.RLock()
 	in := scheduler.Input{Spec: spec, Config: h.cfg, Host: h.monitor.Snapshot().Resources, History: append([]protocol.HistorySample(nil), h.history...), MissingBytes: map[string]int64{}, EnvironmentWarm: map[string]bool{}, LocalBusy: h.localActive >= h.cfg.LocalConcurrency}
 	for _, n := range h.nodes {
-		node := *n
-		if free := preruns[n.ID]; free > 0 {
-			node.ActiveJobs = max(0, node.ActiveJobs-free)
-			if node.ActiveJobs == 0 && node.State == "BUSY" {
-				node.State = "READY"
-			}
-		}
-		in.Nodes = append(in.Nodes, node)
+		in.Nodes = append(in.Nodes, *n)
 	}
 	in.Quarantine = h.quarantineLocked(verifySignature(spec))
 	h.mu.RUnlock()
@@ -760,14 +763,14 @@ func (h *Host) Explain(ctx context.Context, spec protocol.JobSpec) (protocol.Dec
 	}
 	if h.reusable(spec) && m != nil {
 		key := h.reuseKeyFor(spec, m)
-		h.prerunMu.Lock()
+		h.flightMu.Lock()
 		node := ""
 		if id := h.flightFor(key); id != "" {
 			node = h.flights[id].node
 		}
-		h.prerunMu.Unlock()
+		h.flightMu.Unlock()
 		if node != "" {
-			// The same command on the same files is running (often a pre-run).
+			// The same command on the same files is running already.
 			return protocol.Decision{Target: node, Explanation: "Joining the identical run already in progress.", Confirm: h.needsConfirmation(spec)}, nil
 		}
 	}
@@ -894,9 +897,6 @@ func (h *Host) dispatch(ctx context.Context) {
 			h.removePending(id)
 			if node != nil && !spec.Service {
 				h.startFlight(id, spec, manifest, node.ID)
-				if !spec.Speculative {
-					go h.preemptOn(node.ID) // real work first
-				}
 			}
 			h.running.Add(1)
 			go h.execute(jobCtx, id, node, manifest)
@@ -1023,9 +1023,7 @@ func (h *Host) execute(ctx context.Context, id string, node *protocol.WorkerNode
 	j.OutputBytes = out.count + errout.count
 	j.Truncated = out.truncated || errout.truncated
 	if j.State == "CANCELLED" {
-		if !strings.HasPrefix(j.Error, "Pre-run stopped:") {
-			j.Error = "Cancelled by user."
-		}
+		j.Error = "Cancelled by user."
 	} else if endedErr != nil {
 		j.State = "FAILED"
 		j.Error = "Job deadline/interruption: " + endedErr.Error()
@@ -1066,7 +1064,6 @@ func (h *Host) execute(ctx context.Context, id string, node *protocol.WorkerNode
 	go func() { // outside the lock: these read the job's logs and serve joiners
 		if storable {
 			h.rememberResult(id, spec, attempt, exitCode, fingerprint, now)
-			h.noteCommand(spec, attempt.ServicesUsed != nil && *attempt.ServicesUsed)
 		}
 		h.landFlight(id)
 	}()
