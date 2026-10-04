@@ -18,6 +18,7 @@ Tidal Bridge connects the two with a USB cable. You and your agents run commands
 - **Keeps results trustworthy.** A doubtful phone failure is re-run on the laptop, and a command the phone gets wrong stays on the laptop. Nothing runs twice by accident.
 - **Keeps dev servers alive.** A dev server runs on the phone and answers on its usual `localhost` port; if the phone goes away, it restarts on the laptop.
 - **Treats the phone as a phone.** One job at a time while you use it or when it is warm, nothing new when it is hot, and when it gets too hot its running jobs move back to the laptop.
+- **Never runs the same thing twice.** A test or check that already ran on the phone with the same files comes back instantly, with the same output.
 - **Uses both when there is room.** A long test suite can run half on the laptop and half on the phone at the same time.
 - **Shows what it saves.** A local dashboard shows where every command ran and the CPU time and memory the phone took off the laptop.
 

@@ -26,9 +26,12 @@ type Device struct {
 	Launcher string `yaml:"launcher,omitempty" json:"launcher,omitempty"`
 }
 type Config struct {
-	Bind              string  `yaml:"bind" json:"bind"`
-	Mode              string  `yaml:"mode" json:"mode"`
-	Paused            bool    `yaml:"paused" json:"paused"`
+	Bind   string `yaml:"bind" json:"bind"`
+	Mode   string `yaml:"mode" json:"mode"`
+	Paused bool   `yaml:"paused" json:"paused"`
+	// NoReuse turns off reusing the result of a test or check whose inputs
+	// did not change since a phone ran it.
+	NoReuse           bool    `yaml:"no_reuse,omitempty" json:"no_reuse,omitempty"`
 	ADB               string  `yaml:"adb" json:"adb"`
 	QueueSize         int     `yaml:"queue_size" json:"queue_size"`
 	LocalConcurrency  int     `yaml:"local_concurrency" json:"local_concurrency"`

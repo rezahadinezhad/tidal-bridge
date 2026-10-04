@@ -226,6 +226,14 @@ type Attempt struct {
 	WorkerCPUSeconds *float64  `json:"worker_cpu_seconds,omitempty"`
 	HostCPUSeconds   *float64  `json:"host_cpu_seconds,omitempty"`
 	HostPeakRAMMB    *float64  `json:"host_peak_ram_mb,omitempty"`
+	// Tree identifies exactly the files the worker ran with (paths and
+	// content, after any refresh during the sync).
+	Tree string `json:"tree,omitempty"`
+	// ServicesUsed: whether the run connected to a laptop service through a
+	// tunnel; nil when it had none or the worker could not tell.
+	ServicesUsed *bool `json:"services_used,omitempty"`
+	// Reused names the job whose result this attempt reused.
+	Reused string `json:"reused,omitempty"`
 }
 type Job struct {
 	ID       string     `json:"id"`
