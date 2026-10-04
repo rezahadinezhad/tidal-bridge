@@ -403,7 +403,6 @@ func (h *Host) runRemote(ctx context.Context, id string, spec protocol.JobSpec, 
 	json.Unmarshal(b, &remoteSpec)
 	remoteSpec["workspace"] = ""
 	delete(remoteSpec, "local_argv") // Windows runtime paths never leave the host.
-	delete(remoteSpec, "speculative")
 	key := ""
 	if m != nil {
 		var nest string

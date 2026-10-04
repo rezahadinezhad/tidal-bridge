@@ -84,7 +84,7 @@ func (h *Host) recordCostLocked(s protocol.HistorySample) {
 // no measurable work or the laptop ran the command after all. h.mu held.
 func (h *Host) sparedLocked(j *protocol.Job) *protocol.Relief {
 	n := len(j.Attempts)
-	if n == 0 || strings.HasPrefix(j.Spec.Profile, "prepare:") || j.Spec.Speculative || j.Evacuated || (j.WriteBack != nil && j.WriteBack.Conflict != "") || (j.Decision.Confirm && j.State == "FAILED") {
+	if n == 0 || strings.HasPrefix(j.Spec.Profile, "prepare:") || j.Evacuated || (j.WriteBack != nil && j.WriteBack.Conflict != "") || (j.Decision.Confirm && j.State == "FAILED") {
 		return nil
 	}
 	a := j.Attempts[n-1]

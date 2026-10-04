@@ -132,9 +132,6 @@ type JobSpec struct {
 	// Shard names the test runner ("vitest" or "jest") when the command runs
 	// a whole suite that can be split between the laptop and a phone.
 	Shard string `json:"shard,omitempty"`
-	// Speculative: a pre-run the host started on an idle phone before anyone
-	// asked (prerun.go); host-only, never sent to a worker.
-	Speculative bool `json:"speculative,omitempty"`
 }
 
 // LocalObservation reports a completed adapter command, never a simulated run.

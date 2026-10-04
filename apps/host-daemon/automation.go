@@ -135,8 +135,6 @@ func (h *Host) RecordLocal(input protocol.LocalObservation) (*protocol.Job, erro
 	if input.PeakRAMMB != nil && (*input.PeakRAMMB < 0 || math.IsNaN(*input.PeakRAMMB) || math.IsInf(*input.PeakRAMMB, 0)) {
 		return nil, fmt.Errorf("invalid local memory observation")
 	}
-	// A test or check that ran here is pre-run on the phone after the next edit.
-	h.noteCommand(input.Spec, false)
 	state := "COMPLETED"
 	if input.ExitCode != 0 {
 		state = "FAILED"
